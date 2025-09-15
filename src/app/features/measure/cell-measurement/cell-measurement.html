@@ -1,0 +1,171 @@
+<div class="max-w-6xl mx-auto p-6 bg-white">
+  <div class="mb-4 flex items-center space-x-2">
+    <label class="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium cursor-pointer">
+      Upload JSON
+      <input type="file" accept="application/json" (change)="onJsonFileUpload($event)" class="hidden" />
+    </label>
+  </div>
+  <!-- Header -->
+  <div class="mb-6 flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">Measurement Configuration</h1>
+      <div class="flex items-center space-x-4 text-gray-600">
+        <span><strong>Type:</strong> {{ measurementData.measureType }}</span>
+        <span><strong>ID:</strong> {{ measurementData.measureId }}</span>
+      </div>
+    </div>
+
+    <div class="flex space-x-2">
+      <button (click)="setViewMode('ui')"
+        [ngClass]="viewMode === 'ui' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'"
+        class="px-4 py-2 rounded-lg font-medium">UI View</button>
+      <button (click)="setViewMode('json')"
+        [ngClass]="viewMode === 'json' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'"
+        class="px-4 py-2 rounded-lg font-medium">JSON View</button>
+      <button (click)="convertHyperMeasure()"
+        class="px-4 py-2 rounded-lg font-medium bg-yellow-500 text-white hover:bg-yellow-600">
+        Export HyperMeasure Files
+      </button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <ng-container *ngIf="viewMode === 'ui'; else jsonView">
+    <div class="mb-6 flex items-center justify-between">
+      <h2 class="text-xl font-semibold text-gray-800 mb-4">
+        Measurement Objects ({{ filteredMeasurementObjects.length }})
+      </h2>
+      <div class="mb-4">
+        <button (click)="addMeasurementObject()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-medium">
+          + Add Measurement Object
+        </button>
+      </div>
+    </div>
+    <div class="mb-6 flex items-center">
+      <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="filterMeasurementObjects()"
+        placeholder="Search Measurement Objects..."
+        class="border border-gray-300 rounded-lg px-4 py-2 w-full max-w-md" />
+    </div>
+    <div *ngFor="let measureObj of filteredMeasurementObjects let i = index"
+      class="border border-gray-300 rounded-lg mb-4">
+      <div class="bg-gray-50 p-4 cursor-pointer hover:bg-gray-100" (click)="toggleSection('measureObj-' + i)">
+        <div class="flex items-center space-x-3">
+          <span *ngIf="expandedSections['measureObj-' + i]">▼</span>
+          <span *ngIf="!expandedSections['measureObj-' + i]">▶</span>
+          <span class="text-blue-600">🗄️</span>
+          <div>
+            <h3 class="font-semibold text-lg">{{ measureObj.name }}</h3>
+            <p class="text-gray-600 text-sm">ID: {{ measureObj.measureObjId }}</p>
+          </div>
+          <div class="flex space-x-2">
+            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">{{ measureObj.counterList.length }}
+              Counters</span>
+            <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">{{ measureObj.kpiList.length }}
+              KPIs</span>
+          </div>
+          <button (click)="removeMeasurementObject(i)" class="ml-auto text-red-600 text-sm">Remove</button>
+        </div>
+      </div>
+
+      <div *ngIf="expandedSections['measureObj-' + i]" class="p-4">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          <!-- Counters -->
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="font-semibold text-blue-900">Counters</h4>
+              <button (click)="addCounter(measureObj)" class="bg-green-500 text-white px-2 py-1 rounded text-xs">+
+                Add</button>
+            </div>
+            <input type="text" [(ngModel)]="measureObj.counterSearchTerm" (ngModelChange)="filterCounters(measureObj)"
+              placeholder="Search Counters..."
+              class="border border-blue-300 rounded-lg px-2 py-1 w-full text-sm mb-3" />
+            <ng-container *ngIf="(measureObj.filteredCounterList?.length ?? 0) > 0; else noCounters">
+              <div *ngFor="let counter of measureObj.filteredCounterList; let ci = index"
+                class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
+                <div class="flex justify-between mb-2">
+                  <input [(ngModel)]="counter.name" class="border rounded px-1" />
+                  <select [(ngModel)]="counter.cumulative" class="border rounded px-1 text-xs">
+                    <option [ngValue]="true">Cumulative</option>
+                    <option [ngValue]="false">Non-cumulative</option>
+                  </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span class="text-gray-500">ID:</span>
+                    <input [(ngModel)]="counter.id" class="ml-2 font-mono border rounded px-1 w-28" />
+                  </div>
+                  <div>
+                    <span class="text-gray-500">Unit:</span>
+                    <input [(ngModel)]="counter.unit" class="ml-2 border rounded px-1 w-20" />
+                  </div>
+                </div>
+                <button (click)="removeCounter(measureObj, ci)" class="mt-2 text-red-600 text-xs">Remove</button>
+              </div>
+            </ng-container>
+            <ng-template #noCounters>
+              <div class="text-gray-400 text-sm">No counters found.</div>
+            </ng-template>
+          </div>
+
+          <!-- KPIs -->
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="font-semibold text-purple-900">KPIs</h4>
+              <button (click)="addKpi(measureObj)" class="bg-green-500 text-white px-2 py-1 rounded text-xs">+
+                Add</button>
+            </div>
+            <input type="text" [(ngModel)]="measureObj.kpiSearchTerm" (ngModelChange)="filterKpis(measureObj)"
+              placeholder="Search KPIs..." class="border border-blue-300 rounded-lg px-2 py-1 w-full text-sm mb-3" />
+            <ng-container *ngIf="(measureObj.kpiList?.length ?? 0) > 0; else noKpis">
+            <div *ngFor="let kpi of measureObj.filteredKpiList; let ki = index"
+              class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-3">
+              <div class="mb-2">
+                <input [(ngModel)]="kpi.name" class="border rounded px-1 w-full" />
+              </div>
+              <div class="grid grid-cols-1 gap-2 text-sm">
+                <div>
+                  <span class="text-gray-500">KPI ID:</span>
+                  <input [(ngModel)]="kpi.kpiId" type="number" class="ml-2 border rounded px-1 w-24" />
+                </div>
+                <div>
+                  <span class="text-gray-500">Counter List:</span>
+                  <input [(ngModel)]="kpi.kpiCounterList" class="ml-2 border rounded px-1 w-32" />
+                </div>
+                <div>
+                  <span class="text-gray-500">Formula:</span>
+                  <input [(ngModel)]="kpi.formula" class="ml-2 border rounded px-1 w-full" />
+                </div>
+                <div>
+                  <span class="text-gray-500">Indicator:</span>
+                  <select [(ngModel)]="kpi.indicator" class="ml-2 border rounded px-1">
+                    <option value="p">P</option>
+                    <option value="n">N</option>
+                  </select>
+                </div>
+              </div>
+              <button (click)="removeKpi(measureObj, ki)" class="mt-2 text-red-600 text-xs">Remove</button>
+            </div>
+            </ng-container>
+            <ng-template #noKpis>
+              <div class="text-gray-400 text-sm">No KPIs found.</div>
+            </ng-template>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- JSON View -->
+  <ng-template #jsonView>
+    <div class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto">
+      <div class="flex justify-between items-center mb-2">
+        <span class="font-semibold text-white">JSON Output</span>
+        <button (click)="copyJson()" class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">
+          Copy
+        </button>
+      </div>
+      <pre>{{ measurementData | json }}</pre>
+    </div>
+  </ng-template>
+</div>
