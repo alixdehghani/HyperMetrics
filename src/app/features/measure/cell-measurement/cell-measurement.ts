@@ -10,7 +10,7 @@ interface Counter {
 }
 
 interface KPI {
-  kpiId: number;
+  kpiId: string;
   kpiCounterList: string;
   formula: string;
   name: string;
@@ -59,7 +59,7 @@ export class CellMeasurementComponent {
           { name: "X2 handover measurements", unit: "count", id: "C0000000032", cumulative: false },
         ],
         kpiList: [
-          { kpiId: 11001, kpiCounterList: "31,32", formula: "(($32$/$31$)*100)", name: "MAC measurements", indicator: "p" }
+          { kpiId: '11001', kpiCounterList: "31,32", formula: "(($32$/$31$)*100)", name: "MAC measurements", indicator: "p" }
         ]
       }
     ]
@@ -87,6 +87,31 @@ export class CellMeasurementComponent {
           const json = JSON.parse(e.target?.result as string);
           // Basic validation
           if (json.measureType && json.measureId && Array.isArray(json.measureObjList)) {
+            // Map counters to add generated IDs
+            let counterIdSeq = 1;
+            let kpiIdSeq = 1;
+            json.measureObjList.forEach((obj: any) => {
+              obj.counterList.forEach((counter: any) => {
+                counter.id = `C${counterIdSeq.toString().padStart(8, '0')}`;
+                counterIdSeq++;
+              });
+              obj.kpiList.forEach((kpi: any, kpiIdx: number) => {
+                kpi.kpiId = `${110}${kpiIdSeq.toString()}`;
+                kpiIdSeq++;
+              });
+              // Update kpiCounterList in KPIs to use generated counter IDs
+              // obj.kpiList.forEach((kpi: any) => {
+              //   if (kpi.kpiCounterList) {
+              //     // kpiCounterList is comma-separated counter names
+              //     const counterNames = kpi.kpiCounterList.split(',').map((n: string) => n.trim());
+              //     const counterIds = counterNames.map((name: string) => {
+              //       const found = obj.counterList.find((ctr: any) => ctr.name === name);
+              //       return found ? found.id : name; // fallback to name if not found
+              //     });
+              //     kpi.kpiCounterList = counterIds.map((id: string) => id.replace(/^C0+/, '')).join(',');
+              //   }
+              // });
+            });
             this.measurementData = json;
             this.filterMeasurementObjects(); // Update filtered view
             this.viewMode = 'ui'; // Switch to UI view after upload
@@ -242,7 +267,7 @@ export class CellMeasurementComponent {
     }
 
   }
-filterCounters(measureObj: SearchMeasureObj) {
+  filterCounters(measureObj: SearchMeasureObj) {
     const term = measureObj.counterSearchTerm?.toLowerCase().trim() || '';
     if (!term) {
       measureObj.filteredCounterList = measureObj.counterList;
@@ -268,15 +293,20 @@ filterCounters(measureObj: SearchMeasureObj) {
   // -------------------------------
   addMeasurementObject() {
     this.measurementData.measureObjList.push({
-      measureObjId: "201101" + Math.floor(Math.random() * 10000),
+      measureObjId: "201101" + (8000 + this.measurementData.measureObjList.length + 1).toString().padStart(4, '0'),
       name: "New Measurement Object",
       counterList: [],
       kpiList: []
     });
+    this.filterMeasurementObjects(); // Update filtered view
   }
 
   removeMeasurementObject(index: number) {
+    if (!confirm("Are you sure you want to delete this measurement object?")) {
+      return;
+    }
     this.measurementData.measureObjList.splice(index, 1);
+    this.filterMeasurementObjects(); // Update filtered view
   }
 
   // -------------------------------
@@ -286,13 +316,18 @@ filterCounters(measureObj: SearchMeasureObj) {
     measureObj.counterList.push({
       name: "New Counter",
       unit: "unit",
-      id: "C" + Math.floor(Math.random() * 100000000),
+      id: '',
       cumulative: false
     });
+    this._updateMeasurementObject();
   }
 
   removeCounter(measureObj: MeasureObj, index: number) {
+    if (!confirm("Are you sure you want to delete this counter?")) {
+      return;
+    }
     measureObj.counterList.splice(index, 1);
+    this._updateMeasurementObject();
   }
 
   // -------------------------------
@@ -300,16 +335,21 @@ filterCounters(measureObj: SearchMeasureObj) {
   // -------------------------------
   addKpi(measureObj: MeasureObj) {
     measureObj.kpiList.push({
-      kpiId: Math.floor(Math.random() * 10000),
+      kpiId: '0',
       kpiCounterList: "",
       formula: "",
       name: "New KPI",
       indicator: "p"
     });
+    this._updateMeasurementObject();
   }
 
   removeKpi(measureObj: MeasureObj, index: number) {
+    if (!confirm("Are you sure you want to delete this KPI?")) {
+      return;
+    }
     measureObj.kpiList.splice(index, 1);
+    this._updateMeasurementObject();
   }
 
   copyJson() {
@@ -319,5 +359,33 @@ filterCounters(measureObj: SearchMeasureObj) {
     }).catch(err => {
       alert("Failed to copy JSON: " + err);
     });
+  }
+
+  private _updateMeasurementObject() {
+    let counterIdSeq = 1;
+    let kpiIdSeq = 1;
+    this.measurementData.measureObjList.forEach((obj: any) => {
+      obj.counterList.forEach((counter: any) => {
+        counter.id = `C${counterIdSeq.toString().padStart(8, '0')}`;
+        counterIdSeq++;
+      });
+      obj.kpiList.forEach((kpi: any, kpiIdx: number) => {
+        kpi.kpiId = `${110}${kpiIdSeq.toString()}`;
+        kpiIdSeq++;
+      });
+      // Update kpiCounterList in KPIs to use generated counter IDs
+      // obj.kpiList.forEach((kpi: any) => {
+      //   if (kpi.kpiCounterList) {
+      //     // kpiCounterList is comma-separated counter names
+      //     const counterNames = kpi.kpiCounterList.split(',').map((n: string) => n.trim());
+      //     const counterIds = counterNames.map((name: string) => {
+      //       const found = obj.counterList.find((ctr: any) => ctr.name === name);
+      //       return found ? found.id : name; // fallback to name if not found
+      //     });
+      //     kpi.kpiCounterList = counterIds.map((id: string) => id.replace(/^C0+/, '')).join(',');
+      //   }
+      // });
+    });
+    this.filterMeasurementObjects(); // Update filtered view
   }
 }
