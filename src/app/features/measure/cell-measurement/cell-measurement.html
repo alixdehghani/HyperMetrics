@@ -33,7 +33,7 @@
   <ng-container *ngIf="viewMode === 'ui'; else jsonView">
     <div class="mb-6 flex items-center justify-between">
       <h2 class="text-xl font-semibold text-gray-800 mb-4">
-        Measurement Objects ({{ filteredMeasurementObjects.length }})
+        Measurement Objects ({{ measurementData.measureObjList.length }})
       </h2>
       <div class="mb-4">
         <button (click)="addMeasurementObject()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-medium">
@@ -46,9 +46,10 @@
         placeholder="Search Measurement Objects..."
         class="border border-gray-300 rounded-lg px-4 py-2 w-full max-w-md" />
     </div>
-    <div *ngFor="let measureObj of filteredMeasurementObjects let i = index"
+    <div *ngFor="let measureObj of measurementData.measureObjList let i = index"
       class="border border-gray-300 rounded-lg mb-4">
-      <div class="bg-gray-50 p-4 cursor-pointer hover:bg-gray-100" (click)="toggleSection('measureObj-' + i)">
+      <div *ngIf="measureObj._show" class="bg-gray-50 p-4 cursor-pointer hover:bg-gray-100"
+        (click)="toggleSection('measureObj-' + i)">
         <div class="flex items-center space-x-3">
           <span *ngIf="expandedSections['measureObj-' + i]">▼</span>
           <span *ngIf="!expandedSections['measureObj-' + i]">▶</span>
@@ -84,7 +85,32 @@
               <div *ngFor="let counter of measureObj.filteredCounterList; let ci = index"
                 class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
                 <div class="flex justify-between items-center mb-2">
-                  <input [(ngModel)]="counter.name" class="border rounded px-1" />
+                  <div>
+                    <!-- Display mode -->
+                    <div *ngIf="!editingCounter[counter.id]" class="flex items-center gap-2">
+                      <span class="font-medium text-gray-800">{{ counter.name }}</span>
+                      <button class="text-blue-600 hover:text-blue-800 font-semibold text-sm"
+                        (click)="startEditingCounter(counter)">
+                        Edit
+                      </button>
+                    </div>
+
+                    <!-- Edit mode -->
+                    <div *ngIf="editingCounter[counter.id]" class="flex items-center gap-2 w-full">
+                      <!-- <span class="font-medium text-gray-800">{{ counter.id }} -</span> -->
+                      <input [(ngModel)]="editedCounterName[counter.id]"
+                        class="border border-gray-300 rounded px-2 py-1 w-48 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                      <button (click)="confirmCounterNameChange(counter)"
+                        class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">
+                        ✔️
+                      </button>
+                      <button (click)="cancelCounterEdit(counter)"
+                        class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">
+                        ❌
+                      </button>
+                    </div>
+                  </div>
+                  <!-- <input [(ngModel)]="counter.name" class="border rounded px-1" /> -->
                   <select [(ngModel)]="counter.cumulative" class="border rounded px-1 text-xs">
                     <option [ngValue]="true">Cumulative</option>
                     <option [ngValue]="false">Non-cumulative</option>
@@ -93,12 +119,24 @@
                 <div class="flex justify-between items-center mb-2">
                   <div>
                     <span class="text-gray-500">ID:</span>
-                    <input disabled="true" [(ngModel)]="counter.id" class="ml-2 font-mono border rounded px-1 w-28 bg-gray-100 text-gray-500 cursor-not-allowed" />
+                    <input disabled="true" [(ngModel)]="counter.id"
+                      class="ml-2 font-mono border rounded px-1 w-30 bg-gray-100 text-gray-500 cursor-not-allowed" />
                   </div>
                   <div>
                     <span class="text-gray-500">Unit:</span>
                     <input [(ngModel)]="counter.unit" class="ml-2 border rounded px-1 w-20" />
                   </div>
+                </div>
+                <!-- Counter dependency warning -->
+                <div *ngIf="getKpisUsingCounter(measureObj, counter).length > 0"
+                  class="mt-2 px-2 py-2 border border-red-500 bg-red-50 text-red-700 rounded text-xs">
+                  ⚠️ This counter is used in:
+                  <ul class="list-disc ml-5">
+                    <li *ngFor="let kpi of getKpisUsingCounter(measureObj, counter)">
+                      KPI {{ kpi.kpiId }} – {{ kpi.name }}
+                    </li>
+                  </ul>
+                  <p class="mt-1">If you delete this counter, remove it from these KPIs first.</p>
                 </div>
                 <button (click)="removeCounter(measureObj, ci)" class="mt-2 text-red-600 text-xs">Remove</button>
               </div>
@@ -118,34 +156,55 @@
             <input type="text" [(ngModel)]="measureObj.kpiSearchTerm" (ngModelChange)="filterKpis(measureObj)"
               placeholder="Search KPIs..." class="border border-blue-300 rounded-lg px-2 py-1 w-full text-sm mb-3" />
             <ng-container *ngIf="(measureObj.kpiList?.length ?? 0) > 0; else noKpis">
-            <div *ngFor="let kpi of measureObj.filteredKpiList; let ki = index"
-              class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-3">
-              <div class="mb-2">
-                <input [(ngModel)]="kpi.name" class="border rounded px-1 w-full" />
-              </div>
-              <div class="grid grid-cols-1 gap-2 text-sm">
-                <div>
-                  <span class="text-gray-500">KPI ID:</span>
-                  <input disabled="true" [(ngModel)]="kpi.kpiId" type="number" class="ml-2 border rounded px-1 w-24" />
+              <div *ngFor="let kpi of measureObj.filteredKpiList; let ki = index"
+                class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-3 "
+                style="flex-direction: column; gap: 4px;">
+                <div class="mb-3">
+                  <input [(ngModel)]="kpi.name" class="border rounded px-1 w-full" />
                 </div>
-                <div>
+                <!-- <div class="grid grid-cols-1 gap-2 text-sm"> -->
+                <div class="flex  justify-between items-center mb-3">
+                  <div>
+                    <span class="text-gray-500">KPI ID:</span>
+                    <input disabled="true" [(ngModel)]="kpi.kpiId" type="number"
+                      class="ml-2 font-mono border rounded px-1 w-30 bg-gray-100 text-gray-500 cursor-not-allowed" />
+                  </div>
+                  <div class="mb-3">
+                    <span class="text-gray-500">Indicator:</span>
+                    <select [(ngModel)]="kpi.indicator" class="ml-2 border rounded px-1">
+                      <option value="p">P</option>
+                      <option value="n">N</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="mb-3">
                   <span class="text-gray-500">Counter List:</span>
-                  <input disabled="true" [(ngModel)]="kpi.kpiCounterList" class="ml-2 border rounded px-1 w-32" />
+                  <input disabled="true" [(ngModel)]="kpi.kpiCounterList" class="ml-2 font-mono border rounded px-1 w-full bg-gray-100 text-gray-500 cursor-not-allowed" />
                 </div>
-                <div>
+                <div class="mb-3">
                   <span class="text-gray-500">Formula:</span>
                   <input [(ngModel)]="kpi.formula" class="ml-2 border rounded px-1 w-full" />
                 </div>
-                <div>
-                  <span class="text-gray-500">Indicator:</span>
-                  <select [(ngModel)]="kpi.indicator" class="ml-2 border rounded px-1">
-                    <option value="p">P</option>
-                    <option value="n">N</option>
-                  </select>
+                <!-- </div> -->
+                <!-- KPI dependency warning -->
+                <div *ngIf="getCountersUsedByKpi(measureObj, kpi).length > 0"
+                  class="mt-2 px-2 py-2 border border-red-500 bg-red-50 text-red-700 rounded text-xs">
+                  ⚠️ This KPI depends on:
+                  <ul class="list-disc ml-5">
+                    <li *ngFor="let counter of getCountersUsedByKpi(measureObj, kpi)">
+                      Counter {{ counter.id }} – {{ counter.name }}
+                    </li>
+                  </ul>
+                  <p class="mt-1">If you delete this KPI, those counters might become unused.</p>
                 </div>
+                <div *ngIf="validateKpiCounters(measureObj, kpi).length > 0"
+                  class="bg-red-500 mt-2 px-2 py-2 border border-red-500 bg-red-50 text-red-700 rounded text-xs">
+                  <div *ngFor="let err of validateKpiCounters(measureObj, kpi)">
+                    ⛔ {{ err }}
+                  </div>
+                </div>
+                <button (click)="removeKpi(measureObj, ki)" class="mt-2 text-red-600 text-xs">Remove</button>
               </div>
-              <button (click)="removeKpi(measureObj, ki)" class="mt-2 text-red-600 text-xs">Remove</button>
-            </div>
             </ng-container>
             <ng-template #noKpis>
               <div class="text-gray-400 text-sm">No KPIs found.</div>

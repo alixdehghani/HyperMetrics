@@ -1,12 +1,20 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { interval } from 'rxjs';
+
+interface measurementData {
+  measureType: string,
+  measureId: string,
+  measureObjList: MeasureObj[]
+}
 
 interface Counter {
   name: string;
   unit: string;
   id: string;
   cumulative: boolean;
+  _numericId?: string;
 }
 
 interface KPI {
@@ -15,6 +23,7 @@ interface KPI {
   formula: string;
   name: string;
   indicator: string; // "p" or "n"
+  _usedCounters?: Counter[]
 }
 
 interface MeasureObj {
@@ -22,19 +31,12 @@ interface MeasureObj {
   name: string;
   counterList: Counter[];
   kpiList: KPI[];
-}
-
-interface SearchMeasureObj {
-  measureObjId: string;
-  name: string;
-  counterList: Counter[];
-  kpiList: KPI[];
-  counterSearchTerm?: string;
-  kpiSearchTerm?: string;
   filteredCounterList?: Counter[];
   filteredKpiList?: KPI[];
+  kpiSearchTerm?: string;
+  counterSearchTerm?: string;
+  _show?: boolean;
 }
-
 @Component({
   imports: [
     CommonModule,
@@ -43,10 +45,12 @@ interface SearchMeasureObj {
   selector: 'app-cell-measurement',
   templateUrl: './cell-measurement.html',
 })
-export class CellMeasurementComponent {
+export class CellMeasurementComponent implements OnInit {
   expandedSections: { [key: string]: boolean } = {};
   viewMode: 'ui' | 'json' = 'ui';
   searchTerm: string = '';
+  editingCounter: { [key: string]: boolean } = {};
+  editedCounterName: { [key: string]: string } = {};
   measurementData = {
     measureType: "Cell Measurement",
     measureId: "201101",
@@ -54,18 +58,20 @@ export class CellMeasurementComponent {
       {
         measureObjId: "2011018001",
         name: "Radio Resource Control measurements",
-        counterList: [
-          { name: "S1 measurements", unit: "percent", id: "C0000000031", cumulative: true },
-          { name: "X2 handover measurements", unit: "count", id: "C0000000032", cumulative: false },
-        ],
-        kpiList: [
-          { kpiId: '11001', kpiCounterList: "31,32", formula: "(($32$/$31$)*100)", name: "MAC measurements", indicator: "p" }
-        ]
+        counterList: [],
+        kpiList: [],
+        _show: true
       }
     ]
   };
-  filteredMeasurementObjects: SearchMeasureObj[] = [...this.measurementData.measureObjList];
 
+
+  ngOnInit(): void {
+    // interval(1000).subscribe(() => {
+    //   this._normalizeCountersAndKpis(this.measurementData);
+    //   this._updateMeasurementObject();
+    // })
+  }
 
   toggleSection(section: string) {
     this.expandedSections[section] = !this.expandedSections[section];
@@ -80,51 +86,21 @@ export class CellMeasurementComponent {
   // -------------------------------
   onJsonFileUpload(event: any) {
     const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const json = JSON.parse(e.target?.result as string);
-          // Basic validation
-          if (json.measureType && json.measureId && Array.isArray(json.measureObjList)) {
-            // Map counters to add generated IDs
-            let counterIdSeq = 1;
-            let kpiIdSeq = 1;
-            json.measureObjList.forEach((obj: any) => {
-              obj.counterList.forEach((counter: any) => {
-                counter.id = `C${counterIdSeq.toString().padStart(8, '0')}`;
-                counterIdSeq++;
-              });
-              obj.kpiList.forEach((kpi: any, kpiIdx: number) => {
-                kpi.kpiId = `${110}${kpiIdSeq.toString()}`;
-                kpiIdSeq++;
-              });
-              // Update kpiCounterList in KPIs to use generated counter IDs
-              // obj.kpiList.forEach((kpi: any) => {
-              //   if (kpi.kpiCounterList) {
-              //     // kpiCounterList is comma-separated counter names
-              //     const counterNames = kpi.kpiCounterList.split(',').map((n: string) => n.trim());
-              //     const counterIds = counterNames.map((name: string) => {
-              //       const found = obj.counterList.find((ctr: any) => ctr.name === name);
-              //       return found ? found.id : name; // fallback to name if not found
-              //     });
-              //     kpi.kpiCounterList = counterIds.map((id: string) => id.replace(/^C0+/, '')).join(',');
-              //   }
-              // });
-            });
-            this.measurementData = json;
-            this.filterMeasurementObjects(); // Update filtered view
-            this.viewMode = 'ui'; // Switch to UI view after upload
+    if (!file) return;
 
-          } else {
-            alert("Invalid JSON structure.");
-          }
-        } catch (err) {
-          alert("Error parsing JSON file.");
-        }
-      };
-      reader.readAsText(file);
-    }
+    const reader = new FileReader();
+    reader.onload = (e: any) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        this._normalizeCountersAndKpis(data);
+        this.measurementData = data;
+        this._updateMeasurementObject(); // trigger UI update
+      } catch (err) {
+        console.error("❌ Invalid JSON file", err);
+        alert("The uploaded file is not a valid JSON.");
+      }
+    };
+    reader.readAsText(file);
   }
 
   convertHyperMeasure() {
@@ -239,35 +215,33 @@ export class CellMeasurementComponent {
   filterMeasurementObjects() {
     const term = this.searchTerm.toLowerCase().trim();
     if (!term) {
-      this.filteredMeasurementObjects = this.measurementData.measureObjList.map(obj => ({ ...obj, filteredCounterList: obj.counterList, filteredKpiList: obj.kpiList }));
+      this.measurementData.measureObjList.forEach(obj => {
+        obj._show = true;
+        obj.filteredCounterList = obj.counterList;
+        obj.filteredKpiList = obj.kpiList;
+      })
       return;
     }
-
-    this.filteredMeasurementObjects = this.measurementData.measureObjList
-      .map(obj => {
-        const filteredCounters = obj.counterList.filter(counter =>
-          counter.name.toLowerCase().includes(term) || counter.id.toLowerCase().includes(term)
-        );
-        const filteredKpis = obj.kpiList.filter(kpi =>
-          kpi.name.toLowerCase().includes(term) || kpi.kpiId.toString().includes(term)
-        );
-        return { ...obj, filteredCounterList: filteredCounters, filteredKpiList: filteredKpis };
-      })
-      .filter(obj =>
+    this.measurementData.measureObjList.forEach(obj => {
+      const filteredCounterList = obj.counterList.filter(counter =>
+        counter.name.toLowerCase().includes(term) || counter.id.toLowerCase().includes(term)
+      );
+      const filteredKpiList = obj.kpiList.filter(kpi =>
+        kpi.name.toLowerCase().includes(term) || kpi.kpiId.toString().includes(term)
+      );
+      if (
         obj.name.toLowerCase().includes(term) ||
         obj.measureObjId.toLowerCase().includes(term) ||
-        (obj.filteredCounterList && obj.filteredCounterList.length > 0) ||
-        (obj.filteredKpiList && obj.filteredKpiList.length > 0)
-      );
-
-    // If no results found, reset to show all
-    if (this.filteredMeasurementObjects.length === 0) {
-      this.filteredMeasurementObjects = this.measurementData.measureObjList.map(obj => ({ ...obj, filteredCounterList: obj.counterList, filteredKpiList: obj.kpiList }));
-      return;
-    }
-
+        (filteredCounterList && filteredCounterList.length > 0) ||
+        (filteredKpiList && filteredKpiList.length > 0)
+      ) {
+        obj._show = true
+      } else {
+        obj._show = false
+      }
+    });
   }
-  filterCounters(measureObj: SearchMeasureObj) {
+  filterCounters(measureObj: MeasureObj) {
     const term = measureObj.counterSearchTerm?.toLowerCase().trim() || '';
     if (!term) {
       measureObj.filteredCounterList = measureObj.counterList;
@@ -277,8 +251,7 @@ export class CellMeasurementComponent {
       counter.name.toLowerCase().includes(term) || counter.id.toLowerCase().includes(term)
     );
   }
-
-  filterKpis(measureObj: SearchMeasureObj) {
+  filterKpis(measureObj: MeasureObj) {
     const term = measureObj.kpiSearchTerm?.toLowerCase() || '';
     if (!term) {
       measureObj.filteredKpiList = measureObj.kpiList;
@@ -288,6 +261,7 @@ export class CellMeasurementComponent {
       kpi.name.toLowerCase().includes(term) || kpi.kpiId.toString().includes(term)
     );
   }
+
   // -------------------------------
   // CRUD operations for Measurement Objects
   // -------------------------------
@@ -298,7 +272,7 @@ export class CellMeasurementComponent {
       counterList: [],
       kpiList: []
     });
-    this.filterMeasurementObjects(); // Update filtered view
+    this.filterMeasurementObjects();
   }
 
   removeMeasurementObject(index: number) {
@@ -319,14 +293,20 @@ export class CellMeasurementComponent {
       id: '',
       cumulative: false
     });
+    this._normalizeCountersAndKpis(this.measurementData);
     this._updateMeasurementObject();
   }
 
   removeCounter(measureObj: MeasureObj, index: number) {
-    if (!confirm("Are you sure you want to delete this counter?")) {
+    const counter = measureObj.counterList[index];
+    const usedIn = this.getKpisUsingCounter(measureObj, counter);
+    if (usedIn.length > 0) {
+      alert(`This counter is used in KPIs: ${usedIn.map(k => k.kpiId).join(', ')}. Remove it from those KPIs first.`);
       return;
     }
+    if (!confirm("Are you sure you want to delete this counter?")) return;
     measureObj.counterList.splice(index, 1);
+    this._normalizeCountersAndKpis(this.measurementData);
     this._updateMeasurementObject();
   }
 
@@ -341,14 +321,19 @@ export class CellMeasurementComponent {
       name: "New KPI",
       indicator: "p"
     });
+    this._normalizeCountersAndKpis(this.measurementData);
     this._updateMeasurementObject();
   }
 
   removeKpi(measureObj: MeasureObj, index: number) {
-    if (!confirm("Are you sure you want to delete this KPI?")) {
-      return;
+    const kpi = measureObj.kpiList[index];
+    const usedCounters = this.getCountersUsedByKpi(measureObj, kpi);
+    if (usedCounters.length > 0) {
+      alert(`This KPI depends on counters: ${usedCounters.map(c => c.name).join(', ')}.`);
     }
+    if (!confirm("Are you sure you want to delete this KPI?")) return;
     measureObj.kpiList.splice(index, 1);
+    this._normalizeCountersAndKpis(this.measurementData);
     this._updateMeasurementObject();
   }
 
@@ -360,32 +345,243 @@ export class CellMeasurementComponent {
       alert("Failed to copy JSON: " + err);
     });
   }
+  // Find KPIs that reference a counter
+  getKpisUsingCounter(measureObj: MeasureObj, counter: Counter): KPI[] {
+    if (!counter._numericId) return [];
+
+    return measureObj.kpiList.filter(kpi => {
+      const ids = kpi.kpiCounterList
+        ? kpi.kpiCounterList.split(",").map(id => id.trim())
+        : [];
+      return ids.includes(counter._numericId || '');
+    });
+  }
+
+  // Find Counters referenced by a KPI (numeric IDs → counters)
+  getCountersUsedByKpi(measureObj: MeasureObj, kpi: KPI): Counter[] {
+    if (!kpi.kpiCounterList) return [];
+
+    const counterIds = kpi.kpiCounterList.split(",").map(id => id.trim());
+
+    return measureObj.counterList.filter(counter =>
+      counter._numericId ? counterIds.includes(counter._numericId) : false
+    );
+  }
+
+  private _generateCounterId(index: number): string {
+    // index starts from 1
+    return `C00000000${index.toString()}`;
+  }
+
+  private _generateKpiId(index: number): string {
+    // index starts from 1
+    return `110${index.toString()}`;
+  }
+
 
   private _updateMeasurementObject() {
-    let counterIdSeq = 1;
-    let kpiIdSeq = 1;
-    this.measurementData.measureObjList.forEach((obj: any) => {
-      obj.counterList.forEach((counter: any) => {
-        counter.id = `C${counterIdSeq.toString().padStart(8, '0')}`;
-        counterIdSeq++;
-      });
-      obj.kpiList.forEach((kpi: any, kpiIdx: number) => {
-        kpi.kpiId = `${110}${kpiIdSeq.toString()}`;
-        kpiIdSeq++;
-      });
-      // Update kpiCounterList in KPIs to use generated counter IDs
-      // obj.kpiList.forEach((kpi: any) => {
-      //   if (kpi.kpiCounterList) {
-      //     // kpiCounterList is comma-separated counter names
-      //     const counterNames = kpi.kpiCounterList.split(',').map((n: string) => n.trim());
-      //     const counterIds = counterNames.map((name: string) => {
-      //       const found = obj.counterList.find((ctr: any) => ctr.name === name);
-      //       return found ? found.id : name; // fallback to name if not found
-      //     });
-      //     kpi.kpiCounterList = counterIds.map((id: string) => id.replace(/^C0+/, '')).join(',');
-      //   }
-      // });
-    });
     this.filterMeasurementObjects(); // Update filtered view
   }
+
+  private _normalizeCountersAndKpis(measureObjData: measurementData) {
+    let counterIdSeq = 1;
+    let kpiIdSeq = 1;
+    measureObjData.measureObjList.forEach(measureObj => {
+      measureObj._show = true;
+      // 1. Assign counter IDs
+      measureObj.counterList.forEach((counter, i) => {
+        counter.id = this._generateCounterId(counterIdSeq); 
+        counter._numericId = counterIdSeq.toString();       
+        counterIdSeq++;
+      });
+
+      // Build lookup: counterName → numericId
+      const nameToNumericId: Record<string, string> = {};
+      measureObj.counterList.forEach(c => {
+        nameToNumericId[c.name] = c._numericId!;
+      });
+
+      // 2. Update KPI references
+      measureObj.kpiList.forEach(kpi => {
+        kpi.kpiId = this._generateKpiId(kpiIdSeq); 
+        kpiIdSeq++;
+        // Normalize kpiCounterList → numeric IDs only
+        if (kpi.kpiCounterList) {
+          kpi.kpiCounterList = kpi.kpiCounterList
+            .split(",")
+            .map(name => {
+              const clean = name.trim();
+              return nameToNumericId[clean] || clean;
+            })
+            .join(",");
+        }
+
+        // Normalize formula → wrap numeric IDs with $…$
+        if (kpi.formula) {
+          Object.entries(nameToNumericId).forEach(([name, numId]) => {
+            const regex = new RegExp(`\\b${name}\\b`, "g");
+            kpi.formula = kpi.formula.replace(regex, `$${numId}`);
+          });
+        }
+
+        kpi._usedCounters = measureObj.counterList.filter(counter =>
+          counter._numericId ? kpi.kpiCounterList.split(',').includes(counter._numericId) : false
+        );
+      });
+    })
+  }
+
+  // onKpiFormulaChange(measureObj: MeasureObj, kpi: KPI) {
+  //   if (!kpi.formula) {
+  //     kpi._usedCounters = [];
+  //     return;
+  //   }
+
+  //   // Find all $<number>$ patterns in the formula
+  //   const counterIds = (kpi.formula.match(/\$(\d+)\$/g) || [])
+  //     .map(match => match.replace(/\$/g, "")); // remove $ → "31", "32"
+
+  //   // Map numeric IDs to counters
+  //   kpi._usedCounters = measureObj.counterList.filter(counter =>
+  //     counter._numericId ? counterIds.includes(counter._numericId) : false
+  //   );
+  // }
+
+  validateKpiCounters(measureObj: MeasureObj, kpi: KPI): string[] {
+    const errors: string[] = [];
+
+    // Collect valid counter numeric IDs
+    const validIds = measureObj.counterList.map(c => c._numericId);
+
+    // --- Check kpiCounterList
+    const kpiCounterIds = kpi.kpiCounterList
+      ? kpi.kpiCounterList.split(",").map(id => id.trim()).filter(id => !!id)
+      : [];
+
+    kpiCounterIds.forEach(id => {
+      if (!validIds.includes(id)) {
+        errors.push(`Counter ID ${id} in KPI ${kpi.kpiId} is missing from counter list.`);
+      }
+    });
+
+    // --- Check formula
+    const formulaCounterIds = (kpi.formula.match(/\$(\d+)\$/g) || [])
+      .map(m => m.replace(/\$/g, ""));
+
+    formulaCounterIds.forEach(id => {
+      if (!validIds.includes(id)) {
+        errors.push(`Counter ID ${id} in formula of KPI ${kpi.kpiId} is missing from counter list.`);
+      }
+    });
+
+    return errors;
+  }
+
+  // Existing methods here (extractCounterNamesFromFormula, extractCounterIdsFromFormula, etc.)
+
+  startEditingCounter(counter: any) {
+    this.editingCounter[counter.id] = true;
+    this.editedCounterName[counter.id] = counter.name;
+  }
+
+  // // Called whenever counter name is changed
+  // onCounterNameChange(measureObj: MeasureObj, counter: Counter) {
+  //   // Update all KPIs in this measureObj that use this counter
+  //   measureObj.kpiList.forEach(kpi => {
+  //     // Update counter names in counterList
+  //     kpi._usedCounters = kpi._usedCounters?.map(c =>
+  //       c.id === counter.id ? { ...c, name: counter.name } : c
+  //     );
+
+  //     // Update formula strings: replace old counter name with new one
+  //     if (kpi.formula) {
+  //       kpi.formula = this.updateFormulaCounterName(kpi.formula, counter.id, counter.name);
+  //     }
+  //   });
+  // }
+
+
+  // // Replace counter name in formula string safely
+  // updateFormulaCounterName(formula: string, counterId: string, newName: string): string {
+  //   const counterIds = this.extractCounterIdsFromFormula(formula);
+  //   const counterNames = this.extractCounterNamesFromFormula(formula);
+
+  //   // Build mapping of counterId -> name
+  //   const mapIdToName: Record<string, string> = {};
+  //   counterIds.forEach((id, i) => mapIdToName[id] = id === counterId ? newName : counterNames[i]);
+
+  //   // Rebuild formula with updated names
+  //   let updatedFormula = formula;
+  //   for (const id of Object.keys(mapIdToName)) {
+  //     const oldName = counterNames[counterIds.indexOf(id)];
+  //     updatedFormula = updatedFormula.replace(new RegExp(`\\b${oldName}\\b`, 'g'), mapIdToName[id]);
+  //   }
+  //   return updatedFormula;
+  // }
+
+  // // Get dependencies for display & updates
+  // getCounterDependencies(measureObj: MeasureObj, counterId: string) {
+  //   return measureObj.kpiList
+  //     .filter(kpi =>
+  //       kpi._usedCounters?.some(c => c.id === counterId) ||
+  //       this.extractCounterIdsFromFormula(kpi.formula).includes(counterId)
+  //     )
+  //     .map(kpi => ({
+  //       kpiName: kpi.name,
+  //       usedInCounterList: kpi._usedCounters?.some(c => c.id === counterId),
+  //       usedInFormula: this.extractCounterIdsFromFormula(kpi.formula).includes(counterId)
+  //     }));
+  // }
+
+  confirmCounterNameChange(counter: any) {
+    // const oldName = counter.name;
+    // counter.name = this.editedCounterName[counter.id];
+    // this.editingCounter[counter.id] = false;
+
+    // // Notify user of affected KPIs
+    // const affectedKpis: string[] = [];
+    // this.measurementData.measureObjList.forEach((obj: any) => {
+    //   obj.kpiList.forEach((kpi: any) => {
+    //     if (this.extractCounterIdsFromFormula(kpi.formula).includes(counter.id)) {
+    //       affectedKpis.push(kpi.name);
+    //     }
+    //   });
+    // });
+
+    // if (affectedKpis.length > 0) {
+    //   alert(
+    //     `Counter "${oldName}" renamed to "${counter.name}".\n` +
+    //     `The following KPIs are affected:\n- ${affectedKpis.join('\n- ')}`
+    //   );
+    // }
+  }
+
+  cancelCounterEdit(counter: any) {
+    this.editingCounter[counter.id] = false;
+  }
+  // // Extract counter IDs from a formula string
+  // extractCounterIdsFromFormula(formula: string, measureObj?: { counterList: Counter[] }): string[] {
+  //   if (!formula || !measureObj) return [];
+  //   const ids: string[] = [];
+  //   measureObj.counterList.forEach(counter => {
+  //     const regex = new RegExp(`\\b${counter.name}\\b`, 'g');
+  //     if (regex.test(formula)) {
+  //       ids.push(counter.id);
+  //     }
+  //   });
+  //   return ids;
+  // }
+
+  // // Extract counter NAMES from a formula string
+  // extractCounterNamesFromFormula(formula: string, measureObj?: { counterList: Counter[] }): string[] {
+  //   if (!formula || !measureObj) return [];
+  //   const names: string[] = [];
+  //   measureObj.counterList.forEach(counter => {
+  //     const regex = new RegExp(`\\b${counter.name}\\b`, 'g');
+  //     if (regex.test(formula)) {
+  //       names.push(counter.name);
+  //     }
+  //   });
+  //   return names;
+  // }
 }
