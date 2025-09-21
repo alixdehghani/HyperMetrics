@@ -22,10 +22,20 @@
       <button (click)="setViewMode('json')"
         [ngClass]="viewMode === 'json' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'"
         class="px-4 py-2 rounded-lg font-medium cursor-pointer">JSON View</button>
-      <button (click)="convertHyperMeasure()"
+      <!-- <button (click)="convertHyperMeasure()"
         class="px-4 py-2 rounded-lg font-medium bg-yellow-500 text-white hover:bg-yellow-600 cursor-pointer">
         Export HyperMeasure Files
+      </button> -->
+      <button (click)="downloadPropertiesFile()"
+        class="px-4 py-2 rounded-lg font-medium bg-yellow-500 text-white hover:bg-yellow-600 cursor-pointer">
+        Download Properties File
       </button>
+
+      <button (click)="downloadENodeB()"
+        class="px-4 py-2 rounded-lg font-medium bg-yellow-500 text-white hover:bg-yellow-600 cursor-pointer">
+        Download eNodB No Realtime File
+      </button>
+
     </div>
   </div>
 
@@ -36,7 +46,8 @@
         Measurement Objects ({{ measurementData.measureObjList.length }})
       </h2>
       <div class="mb-4">
-        <button (click)="addMeasurementObject()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-medium cursor-pointer">
+        <button (click)="addMeasurementObject()"
+          class="bg-green-600 text-white px-4 py-2 rounded-lg font-medium cursor-pointer">
           + Add Measurement Object
         </button>
       </div>
@@ -48,14 +59,14 @@
     </div>
     <div *ngFor="let measureObj of measurementData.measureObjList let i = index"
       class="border border-gray-300 rounded-lg mb-4">
-      <div *ngIf="measureObj._show" class="bg-gray-50 p-4 cursor-pointer hover:bg-gray-100"
+      <div *ngIf="measureObj._show" class="bg-gray-50 p-4 cursor-pointer hover:bg-gray-100 sticky top-0" style="position: sticky; top: 0;"
         (click)="toggleSection('measureObj-' + i)">
         <div class="flex items-center space-x-3">
           <span *ngIf="expandedSections['measureObj-' + i]">▼</span>
           <span *ngIf="!expandedSections['measureObj-' + i]">▶</span>
           <span class="text-blue-600">🗄️</span>
           <div>
-            <h3 class="font-semibold text-lg">{{ measureObj.name }}</h3>
+            <h3 class="font-semibold text-lg">{{ measureObj.name }} <span *ngIf="measureObj.abbreviation">({{measureObj.abbreviation}})</span></h3>
             <p class="text-gray-600 text-sm">ID: {{ measureObj.measureObjId }}</p>
           </div>
           <div class="flex space-x-2">
@@ -63,9 +74,12 @@
               Counters</span>
             <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">{{ measureObj.kpiList.length }}
               KPIs</span>
-              <span *ngIf="getAllKpiErrors(measureObj).length > 0" class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">{{getAllKpiErrors(measureObj).length}} Error in KPIs formula</span>
+            <span *ngIf="getAllKpiErrors(measureObj).length > 0"
+              class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">{{getAllKpiErrors(measureObj).length}} Error in
+              KPIs formula</span>
           </div>
-          <button (click)="removeMeasurementObject(i)" class="ml-auto text-red-600 text-sm cursor-pointer">Remove</button>
+          <button (click)="removeMeasurementObject(i)"
+            class="ml-auto text-red-600 text-sm cursor-pointer">Remove</button>
         </div>
       </div>
 
@@ -76,7 +90,8 @@
           <div>
             <div class="flex items-center justify-between mb-4">
               <h4 class="font-semibold text-blue-900">Counters</h4>
-              <button (click)="addCounter(measureObj)" class="bg-green-500 text-white px-2 py-1 rounded text-xs cursor-pointer">+
+              <button (click)="addCounter(measureObj)"
+                class="bg-green-500 text-white px-2 py-1 rounded text-xs cursor-pointer">+
                 Add</button>
             </div>
             <input type="text" [(ngModel)]="measureObj.counterSearchTerm" (ngModelChange)="filterCounters(measureObj)"
@@ -139,7 +154,8 @@
                   </ul>
                   <p class="mt-1">If you delete this counter, remove it from these KPIs first.</p>
                 </div>
-                <button (click)="removeCounter(measureObj, ci)" class="mt-2 text-red-600 text-xs cursor-pointer">Remove</button>
+                <button (click)="removeCounter(measureObj, ci)"
+                  class="mt-2 text-red-600 text-xs cursor-pointer">Remove</button>
               </div>
             </ng-container>
             <ng-template #noCounters>
@@ -151,7 +167,8 @@
           <div>
             <div class="flex items-center justify-between mb-4">
               <h4 class="font-semibold text-purple-900">KPIs</h4>
-              <button (click)="addKpi(measureObj)" class="bg-green-500 text-white px-2 py-1 rounded text-xs cursor-pointer">+
+              <button (click)="addKpi(measureObj)"
+                class="bg-green-500 text-white px-2 py-1 rounded text-xs cursor-pointer">+
                 Add</button>
             </div>
             <input type="text" [(ngModel)]="measureObj.kpiSearchTerm" (ngModelChange)="filterKpis(measureObj)"
@@ -176,6 +193,10 @@
                       <option value="p">P</option>
                       <option value="n">N</option>
                     </select>
+                  </div>
+                  <div class="mb-3">
+                    <span class="text-gray-500">Unit:</span>
+                    <input [(ngModel)]="kpi.unit" class="border rounded px-1" />
                   </div>
                 </div>
                 <div class="mb-3">
@@ -215,7 +236,8 @@
                     ⛔ {{ err }}
                   </div>
                 </div>
-                <button (click)="removeKpi(measureObj, ki)" class="mt-2 text-red-600 text-xs cursor-pointer">Remove</button>
+                <button (click)="removeKpi(measureObj, ki)"
+                  class="mt-2 text-red-600 text-xs cursor-pointer">Remove</button>
               </div>
             </ng-container>
             <ng-template #noKpis>
@@ -227,12 +249,26 @@
     </div>
   </ng-container>
 
+  <div *ngIf="showRestoreBanner" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded">
+    <p class="font-bold">Restore data?</p>
+    <p>You have a saved JSON file. Do you want to load it?</p>
+    <div class="mt-2 flex gap-2">
+      <button (click)="restoreFromLocalStorage()"
+        class="bg-yellow-500 text-white px-4 py-1 rounded hover:bg-yellow-600">
+        Load
+      </button>
+      <button (click)="clearLocalStorage()" class="bg-gray-300 px-4 py-1 rounded hover:bg-gray-400">
+        Clear
+      </button>
+    </div>
+  </div>
   <!-- JSON View -->
   <ng-template #jsonView>
     <div class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto">
       <div class="flex justify-between items-center mb-2">
         <span class="font-semibold text-white">JSON Output</span>
-        <button (click)="copyJson()" class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 cursor-pointer">
+        <button (click)="copyJson()"
+          class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 cursor-pointer">
           Copy
         </button>
       </div>

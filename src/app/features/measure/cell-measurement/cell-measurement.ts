@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { interval } from 'rxjs';
+import { interval, Subject, takeUntil } from 'rxjs';
 
 interface measurementData {
   measureType: string,
@@ -23,13 +23,15 @@ interface KPI {
   formula: string;
   formulaWithCountersId?: string
   name: string;
-  indicator: string; // "p" or "n"
+  indicator: string; // "p" or "n",
+  unit: string
   _usedCounters: Counter[]
 }
 
 interface MeasureObj {
   measureObjId: string;
   name: string;
+  abbreviation: string;
   counterList: Counter[];
   kpiList: KPI[];
   filteredCounterList?: Counter[];
@@ -46,12 +48,14 @@ interface MeasureObj {
   selector: 'app-cell-measurement',
   templateUrl: './cell-measurement.html',
 })
-export class CellMeasurementComponent implements OnInit {
+export class CellMeasurementComponent implements OnInit, OnDestroy {
   expandedSections: { [key: string]: boolean } = {};
   viewMode: 'ui' | 'json' = 'ui';
   searchTerm: string = '';
   editingCounter: { [key: string]: boolean } = {};
   editedCounterName: { [key: string]: string } = {};
+  showRestoreBanner = false;
+  $destroy = new Subject();
   measurementData = {
     measureType: "Cell Measurement",
     measureId: "201101",
@@ -61,17 +65,23 @@ export class CellMeasurementComponent implements OnInit {
         name: "Radio Resource Control measurements",
         counterList: [],
         kpiList: [],
-        _show: true
+        _show: true,
+        abbreviation: ''
       }
     ]
   };
 
 
   ngOnInit(): void {
-    // interval(1000).subscribe(() => {
-    //   this._normalizeCountersAndKpis(this.measurementData);
-    //   this._updateMeasurementObject();
-    // })
+    const savedJson = localStorage.getItem('hyper_config');
+    if (savedJson) {
+      this.showRestoreBanner = true;
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.$destroy.next(null);
+    this.$destroy.complete();
   }
 
   toggleSection(section: string) {
@@ -95,13 +105,20 @@ export class CellMeasurementComponent implements OnInit {
         const data = JSON.parse(e.target.result);
         this._normalizeCountersAndKpis(data);
         this.measurementData = data;
-        this._updateMeasurementObject(); // trigger UI update
+        this._updateMeasurementObject();
+        this._startUpdateLocalstorageTimerInterval();
       } catch (err) {
         console.error("❌ Invalid JSON file", err);
         alert("The uploaded file is not a valid JSON.");
       }
     };
     reader.readAsText(file);
+  }
+
+  private _startUpdateLocalstorageTimerInterval(): void {
+    interval(1500).pipe(takeUntil(this.$destroy)).subscribe({
+      next: () => localStorage.setItem('hyper_config', JSON.stringify(this.measurementData))
+    });
   }
 
   convertHyperMeasure() {
@@ -271,7 +288,8 @@ export class CellMeasurementComponent implements OnInit {
       measureObjId: "201101" + (8000 + this.measurementData.measureObjList.length + 1).toString().padStart(4, '0'),
       name: "New Measurement Object",
       counterList: [],
-      kpiList: []
+      kpiList: [],
+      abbreviation: ''
     });
     this.filterMeasurementObjects();
   }
@@ -320,6 +338,7 @@ export class CellMeasurementComponent implements OnInit {
       formula: "",
       name: "New KPI",
       indicator: "p",
+      unit: 'persent',
       _usedCounters: []
     });
     this._normalizeCountersAndKpis(this.measurementData);
@@ -349,14 +368,6 @@ export class CellMeasurementComponent implements OnInit {
   // Find KPIs that reference a counter
   getKpisUsingCounter(measureObj: MeasureObj, counter: Counter): KPI[] {
     if (!counter._numericId) return [];
-
-    // return measureObj.kpiList.filter(kpi => {
-    //   const ids = kpi.kpiCounterList
-    //     ? kpi.kpiCounterList.split(",").map(id => id.trim())
-    //     : [];
-    //   return ids.includes(counter._numericId || '');
-    // });
-
     return measureObj.kpiList.filter(kpi => kpi._usedCounters?.some(c => c._numericId === counter._numericId))
   }
 
@@ -396,16 +407,20 @@ export class CellMeasurementComponent implements OnInit {
 
   private _generateCounterId(index: number): string {
     // index starts from 1
-    return `C00000000${index.toString()}`;
+    const counterId = `C${String(index).padStart(10, '0')}`;
+    return counterId;
   }
 
   private _generateKpiId(index: number): string {
     // index starts from 1
-    return `110${index.toString()}`;
+    const kpiId = `${String(11000 + index).toString()}`;
+    return kpiId;
   }
 
 
   private _updateMeasurementObject() {
+    localStorage.setItem('hyper_config', JSON.stringify(this.measurementData));
+    this.showRestoreBanner = false; // no need for restore banner
     this.filterMeasurementObjects(); // Update filtered view
   }
 
@@ -472,12 +487,7 @@ export class CellMeasurementComponent implements OnInit {
 
         // Normalize formula → wrap numeric IDs with $…
         if (kpi.formula) {
-          let normalized = kpi.formula;  // start with original
-          Object.entries(nameToNumericId).forEach(([name, numId]) => {
-            const regex = new RegExp(`\\b${name}\\b`, "g");
-            normalized = normalized.replace(regex, `$${numId}`);
-          });
-          kpi.formulaWithCountersId = normalized;
+          kpi.formulaWithCountersId = this._convertFormula(kpi.formula, measureObj)
         }
 
         kpi._usedCounters = usedCounters;
@@ -487,7 +497,7 @@ export class CellMeasurementComponent implements OnInit {
 
 
       });
-    })
+    });
   }
 
   private extractCounterNamesFromFormula(formula: string, availableCounters: Counter[]): Counter[] {
@@ -509,22 +519,6 @@ export class CellMeasurementComponent implements OnInit {
 
     return found;
   }
-
-  // onKpiFormulaChange(measureObj: MeasureObj, kpi: KPI) {
-  //   if (!kpi.formula) {
-  //     kpi._usedCounters = [];
-  //     return;
-  //   }
-
-  //   // Find all $<number>$ patterns in the formula
-  //   const counterIds = (kpi.formula.match(/\$(\d+)\$/g) || [])
-  //     .map(match => match.replace(/\$/g, "")); // remove $ → "31", "32"
-
-  //   // Map numeric IDs to counters
-  //   kpi._usedCounters = measureObj.counterList.filter(counter =>
-  //     counter._numericId ? counterIds.includes(counter._numericId) : false
-  //   );
-  // }
 
   validateKpiCounters(measureObj: MeasureObj, kpi: KPI): string[] {
     const errors: string[] = [];
@@ -579,55 +573,6 @@ export class CellMeasurementComponent implements OnInit {
     this.editedCounterName[counter.id] = counter.name;
   }
 
-  // // Called whenever counter name is changed
-  // onCounterNameChange(measureObj: MeasureObj, counter: Counter) {
-  //   // Update all KPIs in this measureObj that use this counter
-  //   measureObj.kpiList.forEach(kpi => {
-  //     // Update counter names in counterList
-  //     kpi._usedCounters = kpi._usedCounters?.map(c =>
-  //       c.id === counter.id ? { ...c, name: counter.name } : c
-  //     );
-
-  //     // Update formula strings: replace old counter name with new one
-  //     if (kpi.formula) {
-  //       kpi.formula = this.updateFormulaCounterName(kpi.formula, counter.id, counter.name);
-  //     }
-  //   });
-  // }
-
-
-  // // Replace counter name in formula string safely
-  // updateFormulaCounterName(formula: string, counterId: string, newName: string): string {
-  //   const counterIds = this.extractCounterIdsFromFormula(formula);
-  //   const counterNames = this.extractCounterNamesFromFormula(formula);
-
-  //   // Build mapping of counterId -> name
-  //   const mapIdToName: Record<string, string> = {};
-  //   counterIds.forEach((id, i) => mapIdToName[id] = id === counterId ? newName : counterNames[i]);
-
-  //   // Rebuild formula with updated names
-  //   let updatedFormula = formula;
-  //   for (const id of Object.keys(mapIdToName)) {
-  //     const oldName = counterNames[counterIds.indexOf(id)];
-  //     updatedFormula = updatedFormula.replace(new RegExp(`\\b${oldName}\\b`, 'g'), mapIdToName[id]);
-  //   }
-  //   return updatedFormula;
-  // }
-
-  // // Get dependencies for display & updates
-  // getCounterDependencies(measureObj: MeasureObj, counterId: string) {
-  //   return measureObj.kpiList
-  //     .filter(kpi =>
-  //       kpi._usedCounters?.some(c => c.id === counterId) ||
-  //       this.extractCounterIdsFromFormula(kpi.formula).includes(counterId)
-  //     )
-  //     .map(kpi => ({
-  //       kpiName: kpi.name,
-  //       usedInCounterList: kpi._usedCounters?.some(c => c.id === counterId),
-  //       usedInFormula: this.extractCounterIdsFromFormula(kpi.formula).includes(counterId)
-  //     }));
-  // }
-
   confirmCounterNameChange(counter: Counter) {
     const newName = this.editedCounterName[counter.id];
     if (!newName || newName.trim() === counter.name) {
@@ -642,7 +587,7 @@ export class CellMeasurementComponent implements OnInit {
       .flatMap((mo: any) => mo.kpiList || [])
       .filter((kpi: KPI) =>
         (kpi._usedCounters?.map(c => c._numericId) || "").includes(counter?._numericId || '') ||
-        (kpi.formula || "").includes(`$${counter?._numericId}`)
+        (kpi.formula || "").includes(`$${counter?._numericId}$`)
       );
 
     if (affectedKpis.length > 0) {
@@ -667,35 +612,156 @@ export class CellMeasurementComponent implements OnInit {
     counter.name = newName;
 
     this._normalizeCountersAndKpis(this.measurementData);
+    this._updateMeasurementObject();
     this.editingCounter[counter.id] = false;
   }
 
   cancelCounterEdit(counter: any) {
     this.editingCounter[counter.id] = false;
   }
-  // // Extract counter IDs from a formula string
-  // extractCounterIdsFromFormula(formula: string, measureObj?: { counterList: Counter[] }): string[] {
-  //   if (!formula || !measureObj) return [];
-  //   const ids: string[] = [];
-  //   measureObj.counterList.forEach(counter => {
-  //     const regex = new RegExp(`\\b${counter.name}\\b`, 'g');
-  //     if (regex.test(formula)) {
-  //       ids.push(counter.id);
-  //     }
-  //   });
-  //   return ids;
-  // }
 
-  // // Extract counter NAMES from a formula string
-  // extractCounterNamesFromFormula(formula: string, measureObj?: { counterList: Counter[] }): string[] {
-  //   if (!formula || !measureObj) return [];
-  //   const names: string[] = [];
-  //   measureObj.counterList.forEach(counter => {
-  //     const regex = new RegExp(`\\b${counter.name}\\b`, 'g');
-  //     if (regex.test(formula)) {
-  //       names.push(counter.name);
-  //     }
-  //   });
-  //   return names;
-  // }
+  private _exportToProperties() {
+    let propertiesContent = '';
+    let counterIndex = 1;
+    let kpiIndex = 1;
+
+    // Add measure type
+    propertiesContent += `pm.measure.object.type.${this.measurementData.measureId}=${this.measurementData.measureType}\n`;
+
+    // Add all measure object definitions first
+    this.measurementData.measureObjList.forEach(measureObj => {
+      propertiesContent += `pm.measure.object.${measureObj.measureObjId}=${measureObj.name}\n`;
+    });
+
+    // Process counters
+    this.measurementData.measureObjList.forEach(measureObj => {
+      measureObj.counterList.forEach(counter => {
+        const counterId = this._generateCounterId(counterIndex);
+        propertiesContent += `${counterId}=${counter.name} (${counter.unit})\n`;
+        counterIndex++;
+      });
+    });
+
+    // Process KPIs
+    this.measurementData.measureObjList.forEach(measureObj => {
+      measureObj.kpiList.forEach(kpi => {
+        const kpiId = `K${this._generateKpiId(kpiIndex).padStart(10, '0')}`;
+        propertiesContent += `${kpiId}=${kpi.name} (${kpi.unit})\n`;
+        kpiIndex++;
+      });
+    });
+
+    return propertiesContent;
+  }
+
+  downloadPropertiesFile(filename = 'counters_kpi_list.properties') {
+    const propertiesContent = this._exportToProperties();
+
+    // Create blob and download
+    const blob = new Blob([propertiesContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  private _convertFormula(formula: string, measureObj: MeasureObj) {
+    if (formula) {
+      const nameToNumericId: Record<string, string> = {};
+      measureObj.counterList.forEach(c => {
+        nameToNumericId[c.name] = c._numericId!;
+      });
+      let normalized = formula;  // start with original
+      Object.entries(nameToNumericId).forEach(([name, numId]) => {
+        const regex = new RegExp(`\\b${name}\\b`, "g");
+        normalized = normalized.replace(regex, `$${numId}$`);
+      });
+      return normalized;
+    }
+    return undefined;
+  }
+
+  private _generateENodeB() {
+    const eNodeBStructure = {
+      "neVersion": "faraabeen_default",
+      "neTypeId": "201",
+      "neTypeName": "eNodeB",
+      "measureObjTypeList": [
+        {
+          "measureObjTypeId": this.measurementData.measureId,
+          "name": this.measurementData.measureType,
+          "commAttributes": ["cellId"],
+          "commAttributeVals": ["U8"],
+          "measureObj": []
+        }
+      ] as any[]
+    };
+
+    this.measurementData.measureObjList.forEach(measureObj => {
+      const measureObjStructure = {
+        "measureObjId": measureObj.measureObjId,
+        "name": measureObj.name,
+        "dataUpPeriodMod": "0",
+        "counterList": [] as string[],
+        "kpiList": [] as any[]
+      } as any;
+
+      measureObj.counterList.forEach(counter => {
+        measureObjStructure.counterList.push(counter.id);
+      });
+
+      measureObj.kpiList.forEach(kpi => {
+        const kpiId = kpi.kpiId
+        if (kpiId) {
+          const kpiNumId = parseInt(kpi.kpiId);
+          const convertedFormula = this._convertFormula(kpi.formula, measureObj);
+          const kpiCounterList = this.getKpiCounterList(kpi).join(',');
+
+          measureObjStructure.kpiList.push({
+            "kpiId": kpiNumId,
+            "kpiCounterList": kpiCounterList,
+            "formula": convertedFormula
+          });
+        }
+      });
+
+      eNodeBStructure.measureObjTypeList[0].measureObj.push(measureObjStructure);
+    });
+    return eNodeBStructure;
+  }
+
+  downloadENodeB() {
+    const blob = new Blob([JSON.stringify(this._generateENodeB(), null, 2)], {
+      type: 'application/json'
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'eNodeB_No_Realtime.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  restoreFromLocalStorage(): void {
+    const savedJson = localStorage.getItem('hyper_config');
+    if (savedJson) {
+      this.measurementData = JSON.parse(savedJson);
+      this.showRestoreBanner = false;
+      this._normalizeCountersAndKpis(this.measurementData);
+      this._startUpdateLocalstorageTimerInterval();
+    }
+  }
+
+  clearLocalStorage(): void {
+    localStorage.removeItem('hyper_config');
+    // this.measurementData = null;
+    this.showRestoreBanner = false;
+  }
 }
