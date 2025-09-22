@@ -1,7 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { AbstractControl, FormArray, FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { interval, Subject, takeUntil } from 'rxjs';
+import { FormBuilder, FormGroup } from '@angular/forms';
+import { evaluate } from 'mathjs';
 
 interface measurementData {
   measureType: string,
@@ -15,6 +17,7 @@ interface Counter {
   id: string;
   cumulative: boolean;
   _numericId?: string;
+  _show: boolean;
 }
 
 interface KPI {
@@ -25,7 +28,8 @@ interface KPI {
   name: string;
   indicator: string; // "p" or "n",
   unit: string
-  _usedCounters: Counter[]
+  _usedCounters: Counter[];
+  _show: boolean;
 }
 
 interface MeasureObj {
@@ -34,8 +38,8 @@ interface MeasureObj {
   abbreviation: string;
   counterList: Counter[];
   kpiList: KPI[];
-  filteredCounterList?: Counter[];
-  filteredKpiList?: KPI[];
+  // filteredCounterList?: Counter[];
+  // filteredKpiList?: KPI[];
   kpiSearchTerm?: string;
   counterSearchTerm?: string;
   _show?: boolean;
@@ -43,7 +47,8 @@ interface MeasureObj {
 @Component({
   imports: [
     CommonModule,
-    FormsModule
+    FormsModule,
+    ReactiveFormsModule
   ],
   selector: 'app-cell-measurement',
   templateUrl: './cell-measurement.html',
@@ -52,8 +57,13 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   expandedSections: { [key: string]: boolean } = {};
   viewMode: 'ui' | 'json' = 'ui';
   searchTerm: string = '';
-  editingCounter: { [key: string]: boolean } = {};
-  editedCounterName: { [key: string]: string } = {};
+  editingCounterName: { [key: string]: boolean } = {};
+  editingKpiName: { [key: string]: boolean } = {};
+  editingKpiFormula: { [key: string]: boolean } = {};
+  addingNewCounter = false;
+  newCounterForm!: FormGroup;
+  newKpiForm!: FormGroup;
+  addingNewKpi = false;
   showRestoreBanner = false;
   $destroy = new Subject();
   measurementData = {
@@ -71,6 +81,16 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     ]
   };
 
+  form: FormGroup;
+
+  constructor(private fb: FormBuilder) {
+    this.form = this.fb.group({
+      measureType: [''],
+      measureId: [''],
+      measureObjList: [[]]
+    });
+  }
+
 
   ngOnInit(): void {
     const savedJson = localStorage.getItem('hyper_config');
@@ -82,6 +102,141 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.$destroy.next(null);
     this.$destroy.complete();
+  }
+
+  // Helper methods for accessing form controls
+  getMeasureObjControls() {
+    return (this.form.get('measureObjList') as FormArray).controls;
+  }
+
+  getCounterControls(measureObjIndex: number) {
+    const measureObjArray = this.form.get('measureObjList') as FormArray;
+    const measureObjGroup = measureObjArray.at(measureObjIndex);
+    return (measureObjGroup.get('counterList') as FormArray).controls;
+  }
+
+  getKpiControls(measureObjIndex: number) {
+    const measureObjArray = this.form.get('measureObjList') as FormArray;
+    const measureObjGroup = measureObjArray.at(measureObjIndex);
+    return (measureObjGroup.get('kpiList') as FormArray).controls;
+  }
+
+  private _initForm() {
+    const measureObjFormGroups = this.measurementData.measureObjList.map(obj =>
+      this.fb.group({
+        measureObjId: [obj.measureObjId],
+        name: [obj.name],
+        abbreviation: [obj.abbreviation],
+        counterList: this.fb.array(
+          obj.counterList.map(counter =>
+            this.fb.group({
+              name: [counter.name],
+              unit: [counter.unit],
+              cumulative: [counter.cumulative],
+            })
+          )
+        ),
+        kpiList: this.fb.array(
+          obj.kpiList.map(kpi =>
+            this.fb.group({
+              formula: [kpi.formula],
+              name: [kpi.name],
+              indicator: [kpi.indicator],
+              unit: [kpi.unit],
+            })
+          )
+        )
+      })
+    );
+
+    this.form = this.fb.group({
+      measureType: [this.measurementData.measureType],
+      measureId: [this.measurementData.measureId],
+      measureObjList: this.fb.array(measureObjFormGroups)
+    });
+
+    (this.form.get('measureObjList') as FormArray).controls.forEach((measureObjGroup, objIndex) => {
+      const counterArray = (measureObjGroup.get('counterList') as FormArray);
+      counterArray.controls.forEach((counterGroup, counterIndex) => {
+        counterGroup.get('name')?.valueChanges
+          .pipe(takeUntil(this.$destroy))
+          .subscribe((newName: string) => {
+            this.startEditingCounterName(this.measurementData.measureObjList[objIndex].counterList[counterIndex]);
+          });
+      });
+    });
+    (this.form.get('measureObjList') as FormArray).controls.forEach((measureObjGroup, objIndex) => {
+      const counterArray = (measureObjGroup.get('counterList') as FormArray);
+      counterArray.controls.forEach((counterGroup, counterIndex) => {
+        counterGroup.get('cumulative')?.valueChanges
+          .pipe(takeUntil(this.$destroy))
+          .subscribe((newCumulative: boolean) => {
+            const counter = this.measurementData.measureObjList[objIndex].counterList[counterIndex];
+            counter.cumulative = newCumulative;
+            this._normalizeCountersAndKpis(this.measurementData);
+            this._updateMeasurementObject();
+          });
+      });
+    });
+    (this.form.get('measureObjList') as FormArray).controls.forEach((measureObjGroup, objIndex) => {
+      const counterArray = (measureObjGroup.get('counterList') as FormArray);
+      counterArray.controls.forEach((counterGroup, counterIndex) => {
+        counterGroup.get('unit')?.valueChanges
+          .pipe(takeUntil(this.$destroy))
+          .subscribe((newunit: string) => {
+            const counter = this.measurementData.measureObjList[objIndex].counterList[counterIndex];
+            counter.unit = newunit;
+            this._normalizeCountersAndKpis(this.measurementData);
+            this._updateMeasurementObject();
+          });
+      });
+    });
+    (this.form.get('measureObjList') as FormArray).controls.forEach((measureObjGroup, objIndex) => {
+      const kpiArray = (measureObjGroup.get('kpiList') as FormArray);
+      kpiArray.controls.forEach((kpiGroup, kpiIndex) => {
+        kpiGroup.get('name')?.valueChanges
+          .pipe(takeUntil(this.$destroy))
+          .subscribe((newname: string) => {
+            this.startEditingKpiName(this.measurementData.measureObjList[objIndex].kpiList[kpiIndex]);
+          });
+      });
+    });
+    (this.form.get('measureObjList') as FormArray).controls.forEach((measureObjGroup, objIndex) => {
+      const kpiArray = (measureObjGroup.get('kpiList') as FormArray);
+      kpiArray.controls.forEach((kpiGroup, kpiIndex) => {
+        kpiGroup.get('formula')?.valueChanges
+          .pipe(takeUntil(this.$destroy))
+          .subscribe((newformula: string) => {
+            this.startEditingKpiFormula(this.measurementData.measureObjList[objIndex].kpiList[kpiIndex]);
+          });
+      });
+    });
+    (this.form.get('measureObjList') as FormArray).controls.forEach((measureObjGroup, objIndex) => {
+      const kpiArray = (measureObjGroup.get('kpiList') as FormArray);
+      kpiArray.controls.forEach((kpiGroup, kpiIndex) => {
+        kpiGroup.get('unit')?.valueChanges
+          .pipe(takeUntil(this.$destroy))
+          .subscribe((newunit: string) => {
+            const kpi = this.measurementData.measureObjList[objIndex].kpiList[kpiIndex];
+            kpi.unit = newunit;
+            this._normalizeCountersAndKpis(this.measurementData);
+            this._updateMeasurementObject();
+          });
+      });
+    });
+    (this.form.get('measureObjList') as FormArray).controls.forEach((measureObjGroup, objIndex) => {
+      const kpiArray = (measureObjGroup.get('kpiList') as FormArray);
+      kpiArray.controls.forEach((kpiGroup, kpiIndex) => {
+        kpiGroup.get('indicator')?.valueChanges
+          .pipe(takeUntil(this.$destroy))
+          .subscribe((newindicator: string) => {
+            const kpi = this.measurementData.measureObjList[objIndex].kpiList[kpiIndex];
+            kpi.indicator = newindicator;
+            this._normalizeCountersAndKpis(this.measurementData);
+            this._updateMeasurementObject();
+          });
+      });
+    });
   }
 
   toggleSection(section: string) {
@@ -106,7 +261,9 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
         this._normalizeCountersAndKpis(data);
         this.measurementData = data;
         this._updateMeasurementObject();
-        this._startUpdateLocalstorageTimerInterval();
+        // this._startUpdateLocalstorageTimerInterval();
+        this._initForm();
+        this.saveToLocalStorage();
       } catch (err) {
         console.error("❌ Invalid JSON file", err);
         alert("The uploaded file is not a valid JSON.");
@@ -115,11 +272,11 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     reader.readAsText(file);
   }
 
-  private _startUpdateLocalstorageTimerInterval(): void {
-    interval(1500).pipe(takeUntil(this.$destroy)).subscribe({
-      next: () => localStorage.setItem('hyper_config', JSON.stringify(this.measurementData))
-    });
-  }
+  // private _startUpdateLocalstorageTimerInterval(): void {
+  //   interval(1500).pipe(takeUntil(this.$destroy)).subscribe({
+  //     next: () => localStorage.setItem('hyper_config', JSON.stringify(this.measurementData))
+  //   });
+  // }
 
   convertHyperMeasure() {
     const data = this.measurementData;
@@ -235,8 +392,8 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     if (!term) {
       this.measurementData.measureObjList.forEach(obj => {
         obj._show = true;
-        obj.filteredCounterList = obj.counterList;
-        obj.filteredKpiList = obj.kpiList;
+        obj.counterList.forEach(counter => counter._show = true);
+        obj.kpiList.forEach(kpi => kpi._show = true);
       })
       return;
     }
@@ -262,22 +419,27 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   filterCounters(measureObj: MeasureObj) {
     const term = measureObj.counterSearchTerm?.toLowerCase().trim() || '';
     if (!term) {
-      measureObj.filteredCounterList = measureObj.counterList;
+      measureObj.counterList.forEach(counter => counter._show = true);
+      // measureObj.filteredCounterList = measureObj.counterList;
       return;
     }
-    measureObj.filteredCounterList = measureObj.counterList.filter(counter =>
-      counter.name.toLowerCase().includes(term) || counter.id.toLowerCase().includes(term)
-    );
+    // measureObj.filteredCounterList = measureObj.counterList.filter(counter =>
+    //   counter.name.toLowerCase().includes(term) || counter.id.toLowerCase().includes(term)
+    // );
+    measureObj.counterList.forEach(counter => {
+      counter._show = counter.name.toLowerCase().includes(term) || counter.id.toLowerCase().includes(term);
+    });
   }
   filterKpis(measureObj: MeasureObj) {
     const term = measureObj.kpiSearchTerm?.toLowerCase() || '';
     if (!term) {
-      measureObj.filteredKpiList = measureObj.kpiList;
+      measureObj.kpiList.forEach(kpi => kpi._show = true);
+      // measureObj.filteredKpiList = measureObj.kpiList;
       return;
     }
-    measureObj.filteredKpiList = measureObj.kpiList.filter(kpi =>
-      kpi.name.toLowerCase().includes(term) || kpi.kpiId.toString().includes(term)
-    );
+    measureObj.kpiList.forEach(kpi => {
+      kpi._show = kpi.name.toLowerCase().includes(term) || kpi.kpiId.toString().includes(term);
+    });
   }
 
   // -------------------------------
@@ -305,13 +467,34 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   // -------------------------------
   // CRUD operations for Counters
   // -------------------------------
+  // Updated add/remove methods to work with FormArrays
   addCounter(measureObj: MeasureObj) {
+    const measureObjIndex = this.measurementData.measureObjList.indexOf(measureObj);
+
+    // Add to data model
     measureObj.counterList.push({
       name: "New Counter",
       unit: "unit",
       id: '',
-      cumulative: false
+      cumulative: false,
+      _show: true,
     });
+
+    // Add to form
+    // const counterArray = this.getCounterControls(measureObjIndex)as FormArray;
+    const measureObjArray = this.form.get('measureObjList') as FormArray;
+    const measureObjGroup = measureObjArray.at(measureObjIndex);
+    const counterArray = measureObjGroup.get('counterList') as FormArray;
+    const newCounterGroup = this.fb.group({
+      name: ['New Counter'],
+      unit: ['unit'],
+      id: [{ value: '', disabled: true }],
+      cumulative: [false],
+      _numericId: [''],
+    });
+
+    counterArray.push(newCounterGroup);
+
     this._normalizeCountersAndKpis(this.measurementData);
     this._updateMeasurementObject();
   }
@@ -325,6 +508,10 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     }
     if (!confirm("Are you sure you want to delete this counter?")) return;
     measureObj.counterList.splice(index, 1);
+    const measureObjArray = this.form.get('measureObjList') as FormArray;
+    const measureObjGroup = measureObjArray.at(this.measurementData.measureObjList.indexOf(measureObj));
+    const counterArray = measureObjGroup.get('counterList') as FormArray;
+    counterArray.removeAt(index);
     this._normalizeCountersAndKpis(this.measurementData);
     this._updateMeasurementObject();
   }
@@ -333,14 +520,36 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   // CRUD operations for KPIs
   // -------------------------------
   addKpi(measureObj: MeasureObj) {
+    const measureObjIndex = this.measurementData.measureObjList.indexOf(measureObj);
+
+    // Add to data model
     measureObj.kpiList.push({
       kpiId: '0',
       formula: "",
       name: "New KPI",
       indicator: "p",
-      unit: 'persent',
-      _usedCounters: []
+      unit: 'percent',
+      _usedCounters: [],
+      _show: true,
     });
+
+    // Add to form
+    const measureObjArray = this.form.get('measureObjList') as FormArray;
+    const measureObjGroup = measureObjArray.at(measureObjIndex);
+    const kpiArray = measureObjGroup.get('kpiList') as FormArray;
+
+    const newKpiGroup = this.fb.group({
+      kpiId: [{ value: '0', disabled: true }],
+      formula: [''],
+      formulaWithCountersId: [''],
+      name: ['New KPI'],
+      indicator: ['p'],
+      unit: ['percent'],
+      _usedCounters: [[]]
+    });
+
+    kpiArray.push(newKpiGroup);
+
     this._normalizeCountersAndKpis(this.measurementData);
     this._updateMeasurementObject();
   }
@@ -353,6 +562,10 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     }
     if (!confirm("Are you sure you want to delete this KPI?")) return;
     measureObj.kpiList.splice(index, 1);
+    const measureObjArray = this.form.get('measureObjList') as FormArray;
+    const measureObjGroup = measureObjArray.at(this.measurementData.measureObjList.indexOf(measureObj));
+    const kpiArray = measureObjGroup.get('kpiList') as FormArray;
+    kpiArray.removeAt(index);
     this._normalizeCountersAndKpis(this.measurementData);
     this._updateMeasurementObject();
   }
@@ -419,8 +632,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
 
 
   private _updateMeasurementObject() {
-    localStorage.setItem('hyper_config', JSON.stringify(this.measurementData));
-    this.showRestoreBanner = false; // no need for restore banner
+    this.saveToLocalStorage();
     this.filterMeasurementObjects(); // Update filtered view
   }
 
@@ -457,7 +669,42 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
         errors.push(`Invalid token "${token}" in formula`);
       }
     }
+    if (errors.length > 0) {
+      return errors;
+    }
+    const replacedTokens = tokens.map(token => counterNames.includes(token) ? '1' : token);
+    const evalFormula = replacedTokens.join(' ');
+    try {
+      evaluate(evalFormula);
+    } catch (err) {
+      console.error("Evaluation Error:", err);
+      errors.push(`Error evaluating formula: ${err}`);
+    }
 
+    return errors;
+  }
+
+  validateCounterName(counter: Counter): string[] {
+    const errors: string[] = [];
+    if (!counter.name || !counter.name.trim()) {
+      errors.push("Counter name is required.");
+    }
+    const existingNames = this.measurementData.measureObjList.flatMap(m => m.counterList.filter(c => c.id !== counter.id).map(c => c.name));
+    if (existingNames.some(existingName => existingName === counter.name)) {
+      errors.push(`${counter.name} is already used by another counter. Counter names must be unique.`);
+    }
+    return errors;
+  }
+
+  validateKpiName(kpi: KPI): string[] {
+    const errors: string[] = [];
+    if (!kpi.name || !kpi.name.trim()) {
+      errors.push("KPI name is required.");
+    }
+    const existingNames = this.measurementData.measureObjList.flatMap(m => m.kpiList.filter(k => k.kpiId !== kpi.kpiId).map(k => k.name));
+    if (existingNames.some(existingName => existingName === kpi.name)) {
+      errors.push(`${kpi.name} is already used by another KPI. KPI names must be unique.`);
+    }
     return errors;
   }
 
@@ -465,12 +712,13 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     let counterIdSeq = 1;
     let kpiIdSeq = 1;
     measureObjData.measureObjList.forEach(measureObj => {
-
+      measureObj._show = true;
       // 1. Assign counter IDs
       measureObj.counterList.forEach((counter, i) => {
         counter.id = this._generateCounterId(counterIdSeq);
         counter._numericId = counterIdSeq.toString();
         counterIdSeq++;
+        counter._show = true;
       });
 
       // Build lookup: counterName → numericId
@@ -484,6 +732,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
         const usedCounters = this.extractCounterNamesFromFormula(kpi.formula, measureObj.counterList);
         kpi.kpiId = this._generateKpiId(kpiIdSeq);
         kpiIdSeq++;
+        kpi._show = true;
 
         // Normalize formula → wrap numeric IDs with $…
         if (kpi.formula) {
@@ -562,21 +811,154 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       if (kpiErrors2 && kpiErrors2.length > 0) {
         errors.push(...kpiErrors2.map(err => `KPI ${kpi.kpiId} – ${kpi.name}: ${err}`));
       }
+      const kpiErrors3 = this.validateKpiName(kpi);
+      if (kpiErrors3 && kpiErrors3.length > 0) {
+        errors.push(...kpiErrors3.map(err => `KPI ${kpi.kpiId} – ${kpi.name}: ${err}`));
+      }
     }
     return errors;
   }
 
-  // Existing methods here (extractCounterNamesFromFormula, extractCounterIdsFromFormula, etc.)
+  getAllCountersErrors(measureObj: any): string[] {
+    if (!measureObj?.counterList) return [];
+    let errors: string[] = [];
+    for (let counter of measureObj.counterList) {
+      const counterErrors = this.validateCounterName(counter);
+      if (counterErrors && counterErrors.length > 0) {
+        errors.push(...counterErrors.map(err => `Counter ${counter.id} – ${counter.name}: ${err}`));
+      }
+    }
 
-  startEditingCounter(counter: any) {
-    this.editingCounter[counter.id] = true;
-    this.editedCounterName[counter.id] = counter.name;
+    return errors;
   }
 
-  confirmCounterNameChange(counter: Counter) {
-    const newName = this.editedCounterName[counter.id];
+  startEditingCounterName(counter: Counter) {
+    this.editingCounterName[counter.id] = true;
+  }
+
+  startEditingKpiName(kpi: KPI) {
+    this.editingKpiName[kpi.kpiId] = true;
+  }
+
+  startEditingKpiFormula(kpi: KPI) {
+    this.editingKpiFormula[kpi.kpiId] = true;
+  }
+
+  startAddingNewCounter() {
+    if (this.addingNewCounter) {
+      return; // already adding
+    }
+    this.newCounterForm = this.fb.group({
+      name: ['', [Validators.required]],
+      unit: ['unit', [Validators.required]],
+      cumulative: [false],
+      id: [{ value: 'will be generated', disabled: true }],
+    });
+    this.addingNewCounter = true;
+  }
+
+  startAddingNewKpi() {
+    if (this.addingNewKpi) {
+      return; // already adding
+    }
+    this.newKpiForm = this.fb.group({
+      name: ['', [Validators.required]],
+      formula: ['', [Validators.required]],
+      indicator: ['p', [Validators.required]],
+      unit: ['percent', [Validators.required]],
+      kpiId: [{ value: 'will be generated', disabled: true }],
+    });
+    this.addingNewKpi = true;
+  }
+
+  confirmAddNewCounter(measureObj: MeasureObj) {
+    if (!this.newCounterForm) return;
+    if (this.newCounterForm.invalid) {
+      alert("Please fill in all required fields for the new counter.");
+      return;
+    }
+    const newCounter: Counter = {
+      name: this.newCounterForm.get('name')?.value,
+      unit: this.newCounterForm.get('unit')?.value,
+      cumulative: this.newCounterForm.get('cumulative')?.value,
+      id: '',
+      _show: true,
+    };
+    // Validate name uniqueness
+    const nameErrors = this.validateCounterName(newCounter);
+    if (nameErrors.length > 0) {
+      alert("❌ Invalid counter name:\n" + nameErrors.join('\n'));
+      return;
+    }
+    measureObj.counterList.push(newCounter);
+    this._normalizeCountersAndKpis(this.measurementData);
+    this._updateMeasurementObject();
+    this.$destroy.next(null); // stop any ongoing subscriptions
+    this.$destroy.complete();
+    this.$destroy = new Subject(); // recreate for future use
+    this._initForm();
+    this.addingNewCounter = false;
+    this.newCounterForm = new FormGroup({});
+  }
+
+  confirmAddNewKpi(measureObj: MeasureObj) {
+    if (!this.newKpiForm) return;
+    if (this.newKpiForm.invalid) {
+      alert("Please fill in all required fields for the new KPI.");
+      return;
+    }
+    const newKpi: KPI = {
+      name: this.newKpiForm.get('name')?.value,
+      formula: this.newKpiForm.get('formula')?.value,
+      indicator: this.newKpiForm.get('indicator')?.value,
+      unit: this.newKpiForm.get('unit')?.value,
+      kpiId: '0',
+      _usedCounters: [],
+      _show: true,
+    };
+    // Validate name uniqueness
+    const nameErrors = this.validateKpiName(newKpi);
+    if (nameErrors.length > 0) {
+      alert("❌ Invalid KPI name:\n" + nameErrors.join('\n'));
+      return;
+    }
+    // Validate formula
+    const formulaErrors = this.validateFormula(newKpi.formula, measureObj.counterList);
+    if (formulaErrors.length > 0) {
+      alert("❌ Formula errors:\n" + formulaErrors.join('\n'));
+      return;
+    }
+    measureObj.kpiList.push(newKpi);
+    this._normalizeCountersAndKpis(this.measurementData);
+    this._updateMeasurementObject();
+    this.$destroy.next(null); // stop any ongoing subscriptions
+    this.$destroy.complete();
+    this.$destroy = new Subject(); // recreate for future use
+    this._initForm();
+    this.addingNewKpi = false;
+    this.newKpiForm = new FormGroup({});
+  }
+
+  cancelAddNewKpi() {
+    this.addingNewKpi = false;
+    this.newKpiForm = new FormGroup({});
+  }
+
+  cancelAddNewCounter() {
+    this.addingNewCounter = false;
+    this.newCounterForm = new FormGroup({});
+  }
+
+  confirmCounterNameChange(counterFormControl: AbstractControl, counter: Counter): boolean | void {
+    const newName = counterFormControl.get('name')?.value;
     if (!newName || newName.trim() === counter.name) {
-      this.cancelCounterEdit(counter);
+      this.cancelCounterEdit(counterFormControl, counter);
+      return;
+    }
+
+    if (this.validateCounterName(counterFormControl.value).length > 0) {
+      alert("❌ Invalid counter name:\n" + this.validateCounterName(counterFormControl.value).join('\n'));
+      this.cancelCounterEdit(counterFormControl, counter);
       return;
     }
 
@@ -594,11 +976,13 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       const confirmMsg = `⚠️ Warning: The counter "${oldName}" is used in ${affectedKpis.length} KPI(s).\n\n` +
         `Do you want to update all affected KPIs with the new counter name "${newName}"?`;
       if (!confirm(confirmMsg)) {
+        this.cancelCounterEdit(counterFormControl, counter);
         return; // user cancelled
       }
     }
 
     // Update KPIs that use this counter
+    const measureObjListFormArray = this.form.get('measureObjList') as FormArray;
     for (let kpi of affectedKpis) {
       if (kpi.formula) {
         kpi.formula = kpi.formula.replace(
@@ -606,18 +990,98 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
           newName
         );
       }
+      measureObjListFormArray.controls.forEach(measureObjGroup => {
+        const kpiArray = measureObjGroup.get('kpiList') as FormArray;
+        kpiArray.controls.forEach(kpiGroup => {
+          if (kpiGroup.get('name')?.value === kpi.name) {
+            kpiGroup.get('formula')?.setValue(kpi.formula, { emitEvent: false });
+          }
+        });
+      });
     }
 
     // Apply change to counter after updating KPIs
     counter.name = newName;
-
     this._normalizeCountersAndKpis(this.measurementData);
     this._updateMeasurementObject();
-    this.editingCounter[counter.id] = false;
+    this.editingCounterName[counter.id] = false;
+    return true;
   }
 
-  cancelCounterEdit(counter: any) {
-    this.editingCounter[counter.id] = false;
+  confirmKpiFormulaChange(kpiFormControl: AbstractControl, kpi: KPI): boolean | void {
+    const newFormula = kpiFormControl.get('formula')?.value;
+    if (newFormula === kpi.formula) {
+      this.cancelKpiFormulaEdit(kpiFormControl, kpi);
+      return;
+    }
+    const measureObj = this.measurementData.measureObjList.find(mo =>
+      mo.kpiList.some(kpiItem => kpiItem.kpiId === kpi.kpiId)
+    );
+    if (!measureObj) {
+      alert("Error: Could not find parent measurement object for this KPI.");
+      this.cancelKpiFormulaEdit(kpiFormControl, kpi);
+      return;
+    }
+
+    const formulaErrors = this.validateFormula(newFormula, measureObj.counterList);
+    if (formulaErrors.length > 0) {
+      alert("❌ Formula errors:\n" + formulaErrors.join('\n'));
+      return;
+    }
+
+    // All good, apply change
+    kpi.formula = newFormula;
+    this._normalizeCountersAndKpis(this.measurementData);
+    this._updateMeasurementObject();
+    this.editingKpiFormula[kpi.kpiId] = false;
+    return true;
+  }
+
+  confirmKpiNameChange(kpiFormControl: AbstractControl, kpi: KPI): boolean | void {
+    const newName = kpiFormControl.get('name')?.value;
+    if (!newName || newName.trim() === kpi.name) {
+      this.cancelKpiNameEdit(kpiFormControl, kpi);
+      return;
+    }
+    if (this.validateKpiName(kpiFormControl.value).length > 0) {
+      alert("❌ Invalid KPI name:\n" + this.validateKpiName(kpiFormControl.value).join('\n'));
+      this.cancelKpiNameEdit(kpiFormControl, kpi);
+      return;
+    }
+
+    // Apply change to KPI
+    kpi.name = newName;
+    this._normalizeCountersAndKpis(this.measurementData);
+    this._updateMeasurementObject();
+    this.editingKpiName[kpi.kpiId] = false;
+    return true;
+  }
+
+  cancelCounterEdit(counterFormControl: AbstractControl, counter: Counter) {
+    // Revert name in form if needed
+    const nameControl = counterFormControl.get('name');
+    if (nameControl && nameControl.value !== counter.name) {
+      nameControl.setValue(counter.name, { emitEvent: false });
+    }
+    this.editingCounterName[counter.id] = false;
+  }
+
+  cancelKpiFormulaEdit(kpiFormControl: AbstractControl, kpi: KPI) {
+    // Revert formula in form if needed
+    const formulaControl = kpiFormControl.get('formula');
+    if (formulaControl && formulaControl.value !== kpi.formula) {
+      formulaControl.setValue(kpi.formula, { emitEvent: false });
+    }
+    this.editingKpiFormula[kpi.kpiId] = false;
+  }
+
+  cancelKpiNameEdit(kpiFormControl: AbstractControl, kpi: KPI) {
+    // Revert name in form if needed
+    const nameControl = kpiFormControl.get('name');
+    if (nameControl && nameControl.value !== kpi.name) {
+      nameControl.setValue(kpi.name, { emitEvent: false });
+    }
+    this.editingKpiName[kpi.kpiId] = false;
   }
 
   private _exportToProperties() {
@@ -755,7 +1219,8 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       this.measurementData = JSON.parse(savedJson);
       this.showRestoreBanner = false;
       this._normalizeCountersAndKpis(this.measurementData);
-      this._startUpdateLocalstorageTimerInterval();
+      // this._startUpdateLocalstorageTimerInterval();
+      this._initForm();
     }
   }
 
@@ -763,5 +1228,149 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     localStorage.removeItem('hyper_config');
     // this.measurementData = null;
     this.showRestoreBanner = false;
+  }
+
+  saveToLocalStorage(): void {
+    localStorage.setItem('hyper_config', JSON.stringify(this.form.value));
+    this.showRestoreBanner = false;
+  }
+
+  downloadHyperConfigFiles() {
+    const blob = new Blob([JSON.stringify(this.form.value, null, 2)], {
+      type: 'application/json'
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'hyper-counter-kpi.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  private _convertHyperCounterKpiToKpiSetting() {
+    // Initialize the result object
+    const kpiSetting = {} as any;
+
+    // Process each measureObj in the hyperCounterKpi
+    this.form.value.measureObjList.forEach((measureObj: MeasureObj) => {
+      const abbreviation = measureObj.abbreviation;
+      const targetKey = abbreviation.toLocaleLowerCase();
+
+      if (targetKey) {
+        // Initialize array for this category if it doesn't exist
+        kpiSetting[targetKey] = [];
+
+        // Process each counter in the counterList
+        measureObj.counterList.forEach(counter => {
+          kpiSetting[targetKey].push({
+            counter_name: counter.name,
+            cumulative: counter.cumulative
+          });
+        });
+      }
+    });
+
+    return kpiSetting;
+  }
+
+  downloadKpiSettingFile() {
+    const blob = new Blob([JSON.stringify(this._convertHyperCounterKpiToKpiSetting(), null, 2)], {
+      type: 'application/json'
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'kpi_setting.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  private _convertHyperCounterKpiToDefaultFormulas() {
+    const defaultFormulas = [] as any[];
+    let idCounter = 1;
+
+    // Sub-category mapping from abbreviations
+    // const subCategoryMapping = {
+    //   'RRC': 'RRC',
+    //   'DL': 'DL',
+    //   'UL': 'UL',
+    //   'E-RAB': 'E-RAB',
+    //   'MAC': 'MAC',
+    //   'S1': 'S1AP' // Note: S1 maps to S1AP in the default format
+    // };
+
+    // Helper function to parse formula string and convert to array format
+    function parseFormulaToArray(formulaString: string): string[] {
+      // Do not remove parentheses from the start/end
+      // Split by operators and parentheses, keeping the delimiters
+      const tokens = formulaString.split(/(\+|\-|\*|\/|\(|\))/g).filter(token => token.trim() !== '');
+
+      // Clean up tokens and return array
+      return tokens.map(token => token.trim());
+    }
+
+    // Helper function to determine indicator based on KPI name/title
+    // function getIndicator(name: string, title: string): string {
+    //   const lowerName = name.toLowerCase();
+    //   const lowerTitle = title.toLowerCase();
+
+    //   // Negative indicators (failure rates, discard rates, etc.)
+    //   if (lowerName.includes('failure') || lowerName.includes('discard') ||
+    //     lowerTitle.includes('failure') || lowerTitle.includes('discard') ||
+    //     lowerName.includes('reject')) {
+    //     return 'N';
+    //   }
+
+    //   // Default to positive indicator
+    //   return 'P';
+    // }
+
+    // Process each measureObj in the hyperCounterKpi
+    this.form.value.measureObjList.forEach((measureObj: MeasureObj) => {
+      const abbreviation = measureObj.abbreviation;
+      const subCategory = abbreviation.toUpperCase();
+
+      if (measureObj.kpiList && measureObj.kpiList.length > 0) {
+        measureObj.kpiList.forEach(kpi => {
+          const formulaArray = parseFormulaToArray(kpi.formula);
+          const indicator = kpi.indicator.toUpperCase();
+
+          const defaultKpiFormula = {
+            id: idCounter.toString(),
+            name: kpi.name,
+            title: kpi.name,
+            formula: formulaArray,
+            sub_category: subCategory,
+            type: kpi.unit,
+            unit: kpi.unit === "percent" ? "%" : '',
+            switch_on: true,
+            indicator: indicator
+          };
+
+          defaultFormulas.push(defaultKpiFormula);
+          idCounter++;
+        });
+      }
+    });
+
+    return defaultFormulas;
+  }
+
+  downloadDefaultFormulaFile() {
+    const blob = new Blob([JSON.stringify(this._convertHyperCounterKpiToDefaultFormulas(), null, 2)], {
+      type: 'application/json'
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'default_kpi_formulas.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 }

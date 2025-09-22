@@ -1,5 +1,48 @@
 {
   "plugins": {
-    "@tailwindcss/postcss": {}
+    "@tailwindcss/postcss": {
+      "safelist": [
+        { "pattern": "bg-(red|green|blue|yellow|purple|pink|gray|slate|neutral|stone|orange|amber|lime|teal|cyan|indigo|violet|fuchsia|rose)-(50|100|200|300|400|500|600|700|800|900)" },
+
+        { "pattern": "text-(red|green|blue|yellow|purple|pink|gray|slate|neutral|stone|orange|amber|lime|teal|cyan|indigo|violet|fuchsia|rose)-(50|100|200|300|400|500|600|700|800|900)" },
+
+        { "pattern": "border-(red|green|blue|yellow|purple|pink|gray|slate|neutral|stone|orange|amber|lime|teal|cyan|indigo|violet|fuchsia|rose)-(50|100|200|300|400|500|600|700|800|900)" },
+
+        "bg-white", "bg-black", "text-white", "text-black",
+
+        { "pattern": "(m|p)(t|r|b|l|x|y)?-(0|1|2|3|4|5|6|7|8|9|10|11|12|14|16|20|24|28|32|36|40|44|48|52|56|60|64|72|80|96)" },
+
+        { "pattern": "flex(-(row|col))?" },
+        { "pattern": "items-(start|center|end|baseline|stretch)" },
+        { "pattern": "justify-(start|center|end|between|around|evenly)" },
+        { "pattern": "grid(-(cols|rows))?-(1|2|3|4|5|6|7|8|9|10|11|12)" },
+
+        { "pattern": "w-(auto|full|screen|[0-9]+)" },
+        { "pattern": "h-(auto|full|screen|[0-9]+)" },
+        { "pattern": "min-w-(0|full)" },
+        { "pattern": "min-h-(0|full)" },
+
+        { "pattern": "rounded(-(sm|md|lg|xl|2xl|3xl|full))?" },
+        { "pattern": "shadow(-(sm|md|lg|xl|2xl|inner))?" },
+
+        { "pattern": "text-(xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl)" },
+        { "pattern": "font-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black)" },
+
+        "hidden", "block", "inline-block", "inline", "flex", "grid",
+
+        { "pattern": "(absolute|relative|fixed|sticky)" },
+        { "pattern": "inset-(0|x|y|full)" },
+        { "pattern": "top-(0|1|2|4|8|16|20|24|32|40|1/2|full)" },
+        { "pattern": "left-(0|1|2|4|8|16|20|24|32|40|1/2|full)" },
+
+        { "pattern": "hover:(bg|text|border)-(red|green|blue|gray|yellow|purple|pink)-(400|500|600)" },
+        { "pattern": "focus:(bg|text|border)-(red|green|blue|gray|yellow|purple|pink)-(400|500|600)" },
+        { "pattern": "active:(bg|text|border)-(red|green|blue|gray|yellow|purple|pink)-(500|600|700)" },
+
+        { "pattern": "opacity-(0|25|50|75|100)" },
+        "invisible", "visible"
+      ]
+    },
+    "autoprefixer": {}
   }
 }
