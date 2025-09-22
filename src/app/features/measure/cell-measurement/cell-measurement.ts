@@ -26,6 +26,7 @@ interface KPI {
   formula: string;
   formulaWithCountersId?: string
   name: string;
+  title: string;
   indicator: string; // "p" or "n",
   unit: string
   _usedCounters: Counter[];
@@ -59,6 +60,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   searchTerm: string = '';
   editingCounterName: { [key: string]: boolean } = {};
   editingKpiName: { [key: string]: boolean } = {};
+  editingKpiTitle: { [key: string]: boolean } = {};
   editingKpiFormula: { [key: string]: boolean } = {};
   addingNewCounter = false;
   newCounterForm!: FormGroup;
@@ -143,6 +145,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
               name: [kpi.name],
               indicator: [kpi.indicator],
               unit: [kpi.unit],
+              title: [kpi.title],
             })
           )
         )
@@ -198,6 +201,16 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
           .pipe(takeUntil(this.$destroy))
           .subscribe((newname: string) => {
             this.startEditingKpiName(this.measurementData.measureObjList[objIndex].kpiList[kpiIndex]);
+          });
+      });
+    });
+    (this.form.get('measureObjList') as FormArray).controls.forEach((measureObjGroup, objIndex) => {
+      const kpiArray = (measureObjGroup.get('kpiList') as FormArray);
+      kpiArray.controls.forEach((kpiGroup, kpiIndex) => {
+        kpiGroup.get('title')?.valueChanges
+          .pipe(takeUntil(this.$destroy))
+          .subscribe((newTitle: string) => {
+            this.startEditingKpiTitle(this.measurementData.measureObjList[objIndex].kpiList[kpiIndex]);
           });
       });
     });
@@ -526,6 +539,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     measureObj.kpiList.push({
       kpiId: '0',
       formula: "",
+      title: '',
       name: "New KPI",
       indicator: "p",
       unit: 'percent',
@@ -708,6 +722,18 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     return errors;
   }
 
+  validateKpiTitle(kpi: KPI): string[] {
+    const errors: string[] = [];
+    if (!kpi.title || !kpi.title.trim()) {
+      errors.push("KPI title is required.");
+    }
+    const existingTitles = this.measurementData.measureObjList.flatMap(m => m.kpiList.filter(k => k.kpiId !== kpi.kpiId).map(k => k.title));
+    if (existingTitles.some(existingTitle => existingTitle === kpi.title)) {
+      errors.push(`${kpi.title} is already used by another KPI. KPI titles must be unique.`);
+    }    
+    return errors;
+  }
+
   private _normalizeCountersAndKpis(measureObjData: measurementData) {
     let counterIdSeq = 1;
     let kpiIdSeq = 1;
@@ -815,7 +841,11 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       if (kpiErrors3 && kpiErrors3.length > 0) {
         errors.push(...kpiErrors3.map(err => `KPI ${kpi.kpiId} – ${kpi.name}: ${err}`));
       }
-    }
+      const kpiErrors4 = this.validateKpiTitle(kpi);
+      if (kpiErrors4 && kpiErrors4.length > 0) {
+        errors.push(...kpiErrors4.map(err => `KPI ${kpi.kpiId} – ${kpi.name}: ${err}`));
+      }
+    }    
     return errors;
   }
 
@@ -832,12 +862,26 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     return errors;
   }
 
+  getAllErrors(): string[] {
+    let allErrors: string[] = [];
+    this.measurementData.measureObjList.forEach(measureObj => {
+      const counterErrors = this.getAllCountersErrors(measureObj);
+      const kpiErrors = this.getAllKpiErrors(measureObj);
+      allErrors.push(...counterErrors, ...kpiErrors);
+    });
+    return allErrors;
+  }
+
   startEditingCounterName(counter: Counter) {
     this.editingCounterName[counter.id] = true;
   }
 
   startEditingKpiName(kpi: KPI) {
     this.editingKpiName[kpi.kpiId] = true;
+  }
+
+  startEditingKpiTitle(kpi: KPI) {
+    this.editingKpiTitle[kpi.kpiId] = true;
   }
 
   startEditingKpiFormula(kpi: KPI) {
@@ -863,6 +907,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     }
     this.newKpiForm = this.fb.group({
       name: ['', [Validators.required]],
+      title: ['', [Validators.required]],
       formula: ['', [Validators.required]],
       indicator: ['p', [Validators.required]],
       unit: ['percent', [Validators.required]],
@@ -913,6 +958,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       indicator: this.newKpiForm.get('indicator')?.value,
       unit: this.newKpiForm.get('unit')?.value,
       kpiId: '0',
+      title: this.newKpiForm.get('title')?.value,
       _usedCounters: [],
       _show: true,
     };
@@ -920,6 +966,12 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     const nameErrors = this.validateKpiName(newKpi);
     if (nameErrors.length > 0) {
       alert("❌ Invalid KPI name:\n" + nameErrors.join('\n'));
+      return;
+    }
+
+    const titleErrors = this.validateKpiTitle(newKpi);
+    if (titleErrors.length > 0) {
+      alert("❌ Invalid KPI title:\n" + titleErrors.join('\n'));
       return;
     }
     // Validate formula
@@ -1057,6 +1109,26 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     return true;
   }
 
+  confirmKpiTitleChange(kpiFormControl: AbstractControl, kpi: KPI): boolean | void {
+    const newTitle = kpiFormControl.get('title')?.value;
+    if (!newTitle || newTitle.trim() === kpi.title) {
+      this.cancelKpiTitleEdit(kpiFormControl, kpi);
+      return;
+    }
+    if (this.validateKpiTitle(kpiFormControl.value).length > 0) {
+      alert("❌ Invalid KPI Title:\n" + this.validateKpiTitle(kpiFormControl.value).join('\n'));
+      this.cancelKpiTitleEdit(kpiFormControl, kpi);
+      return;
+    }
+
+    // Apply change to KPI
+    kpi.title = newTitle;
+    this._normalizeCountersAndKpis(this.measurementData);
+    this._updateMeasurementObject();
+    this.editingKpiTitle[kpi.kpiId] = false;
+    return true;
+  }
+
   cancelCounterEdit(counterFormControl: AbstractControl, counter: Counter) {
     // Revert name in form if needed
     const nameControl = counterFormControl.get('name');
@@ -1084,6 +1156,15 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     this.editingKpiName[kpi.kpiId] = false;
   }
 
+  cancelKpiTitleEdit(kpiFormControl: AbstractControl, kpi: KPI) {
+    // Revert Title in form if needed
+    const TitleControl = kpiFormControl.get('title');
+    if (TitleControl && TitleControl.value !== kpi.title) {
+      TitleControl.setValue(kpi.title, { emitEvent: false });
+    }
+    this.editingKpiTitle[kpi.kpiId] = false;
+  }
+
   private _exportToProperties() {
     let propertiesContent = '';
     let counterIndex = 1;
@@ -1094,7 +1175,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
 
     // Add all measure object definitions first
     this.measurementData.measureObjList.forEach(measureObj => {
-      propertiesContent += `pm.measure.object.${measureObj.measureObjId}=${measureObj.name}\n`;
+      propertiesContent += `pm.measure.object.${measureObj.measureObjId}=${measureObj.abbreviation.toUpperCase()}\n`;
     });
 
     // Process counters
@@ -1342,7 +1423,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
           const defaultKpiFormula = {
             id: idCounter.toString(),
             name: kpi.name,
-            title: kpi.name,
+            title: kpi.title,
             formula: formulaArray,
             sub_category: subCategory,
             type: kpi.unit,
