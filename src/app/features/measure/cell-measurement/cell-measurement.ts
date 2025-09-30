@@ -1,14 +1,22 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { AbstractControl, FormArray, FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { interval, Subject, takeUntil } from 'rxjs';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { evaluate } from 'mathjs';
+import { ActivatedRoute } from '@angular/router';
+import { FormulaInput } from '../../../shared/formula-input/formula-input';
+import { UNITS } from '../../../core/interfaces/unit.types';
 
 interface measurementData {
   measureType: string,
   measureId: string,
   measureObjList: MeasureObj[]
+}
+interface CounterItem {
+  id: string;
+  name: string;
+  displayName?: string;
 }
 
 interface Counter {
@@ -49,7 +57,8 @@ interface MeasureObj {
   imports: [
     CommonModule,
     FormsModule,
-    ReactiveFormsModule
+    ReactiveFormsModule,
+    FormulaInput
   ],
   selector: 'app-cell-measurement',
   templateUrl: './cell-measurement.html',
@@ -67,7 +76,17 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   newKpiForm!: FormGroup;
   addingNewKpi = false;
   showRestoreBanner = false;
+  availableCounters: CounterItem[] = [];
+  private _kpiFormulaEditFc!: AbstractControl | null;
   $destroy = new Subject();
+  initialFormula: string = '';
+  newFormula: string = '';
+  isValid: boolean = true;
+  readonly neVersion!: string;
+  readonly neTypeId!: string;
+  readonly neTypeName!: string;
+  readonly units!: string[];
+  showFullscreenFormulaEditor: boolean = false;
   measurementData = {
     measureType: "Cell Measurement",
     measureId: "201101",
@@ -84,8 +103,13 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   };
 
   form: FormGroup;
-
+  private _route = inject(ActivatedRoute);
   constructor(private fb: FormBuilder) {
+    this.neTypeId = this._route.snapshot.paramMap.get('typeId') || '';
+    this.neVersion = this._route.snapshot.data['neVersion'] || '';
+    this.neTypeName = this._route.snapshot.data['neTypeName'] || '';
+    this.units = UNITS;
+
     this.form = this.fb.group({
       measureType: [''],
       measureId: [''],
@@ -730,7 +754,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     const existingTitles = this.measurementData.measureObjList.flatMap(m => m.kpiList.filter(k => k.kpiId !== kpi.kpiId).map(k => k.title));
     if (existingTitles.some(existingTitle => existingTitle === kpi.title)) {
       errors.push(`${kpi.title} is already used by another KPI. KPI titles must be unique.`);
-    }    
+    }
     return errors;
   }
 
@@ -845,7 +869,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       if (kpiErrors4 && kpiErrors4.length > 0) {
         errors.push(...kpiErrors4.map(err => `KPI ${kpi.kpiId} – ${kpi.name}: ${err}`));
       }
-    }    
+    }
     return errors;
   }
 
@@ -937,13 +961,13 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     }
     measureObj.counterList.push(newCounter);
     this._normalizeCountersAndKpis(this.measurementData);
-    this._updateMeasurementObject();
     this.$destroy.next(null); // stop any ongoing subscriptions
     this.$destroy.complete();
     this.$destroy = new Subject(); // recreate for future use
     this._initForm();
     this.addingNewCounter = false;
     this.newCounterForm = new FormGroup({});
+    this._updateMeasurementObject();
   }
 
   confirmAddNewKpi(measureObj: MeasureObj) {
@@ -982,13 +1006,13 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     }
     measureObj.kpiList.push(newKpi);
     this._normalizeCountersAndKpis(this.measurementData);
-    this._updateMeasurementObject();
     this.$destroy.next(null); // stop any ongoing subscriptions
     this.$destroy.complete();
     this.$destroy = new Subject(); // recreate for future use
     this._initForm();
     this.addingNewKpi = false;
     this.newKpiForm = new FormGroup({});
+    this._updateMeasurementObject();
   }
 
   cancelAddNewKpi() {
@@ -1165,17 +1189,25 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     this.editingKpiTitle[kpi.kpiId] = false;
   }
 
+  getCounterLength(): number {
+    return this.measurementData.measureObjList.reduce((sum, mo) => sum + mo.counterList.length, 0);
+  }
+
+  getKpiLength(): number {
+    return this.measurementData.measureObjList.reduce((sum, mo) => sum + mo.kpiList.length, 0);
+  }
+
   private _exportToProperties() {
     let propertiesContent = '';
     let counterIndex = 1;
     let kpiIndex = 1;
 
     // Add measure type
-    propertiesContent += `pm.measure.object.type.${this.measurementData.measureId}=${this.measurementData.measureType}\n`;
+    propertiesContent += `pm.measure.object.type.${this.neTypeId}${this.measurementData.measureId}=${this.measurementData.measureType}\n`;
 
     // Add all measure object definitions first
     this.measurementData.measureObjList.forEach(measureObj => {
-      propertiesContent += `pm.measure.object.${measureObj.measureObjId}=${measureObj.abbreviation.toUpperCase()}\n`;
+      propertiesContent += `pm.measure.object.${this.neTypeId}${this.measurementData.measureId}${measureObj.measureObjId}=${measureObj.abbreviation.toUpperCase()}\n`;
     });
 
     // Process counters
@@ -1233,12 +1265,12 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
 
   private _generateENodeB() {
     const eNodeBStructure = {
-      "neVersion": "faraabeen_default",
-      "neTypeId": "201",
-      "neTypeName": "eNodeB",
+      "neVersion": this.neVersion,
+      "neTypeId": this.neTypeId,
+      "neTypeName": this.neTypeName,
       "measureObjTypeList": [
         {
-          "measureObjTypeId": this.measurementData.measureId,
+          "measureObjTypeId": `${this.neTypeId}${this.measurementData.measureId}`,
           "name": this.measurementData.measureType,
           "commAttributes": ["cellId"],
           "commAttributeVals": ["U8"],
@@ -1249,7 +1281,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
 
     this.measurementData.measureObjList.forEach(measureObj => {
       const measureObjStructure = {
-        "measureObjId": measureObj.measureObjId,
+        "measureObjId": `${this.neTypeId}${this.measurementData.measureId}${measureObj.measureObjId}`,
         "name": measureObj.name,
         "dataUpPeriodMod": "0",
         "counterList": [] as string[],
@@ -1312,12 +1344,12 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   }
 
   saveToLocalStorage(): void {
-    localStorage.setItem('hyper_config', JSON.stringify(this.form.value));
+    localStorage.setItem('hyper_config', JSON.stringify(this.form.getRawValue()));
     this.showRestoreBanner = false;
   }
 
   downloadHyperConfigFiles() {
-    const blob = new Blob([JSON.stringify(this.form.value, null, 2)], {
+    const blob = new Blob([JSON.stringify(this.form.getRawValue(), null, 2)], {
       type: 'application/json'
     });
     const url = URL.createObjectURL(blob);
@@ -1335,7 +1367,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     const kpiSetting = {} as any;
 
     // Process each measureObj in the hyperCounterKpi
-    this.form.value.measureObjList.forEach((measureObj: MeasureObj) => {
+    this.form.getRawValue().measureObjList.forEach((measureObj: MeasureObj) => {
       const abbreviation = measureObj.abbreviation;
       const targetKey = abbreviation.toLocaleLowerCase();
 
@@ -1411,7 +1443,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     // }
 
     // Process each measureObj in the hyperCounterKpi
-    this.form.value.measureObjList.forEach((measureObj: MeasureObj) => {
+    this.form.getRawValue().measureObjList.forEach((measureObj: MeasureObj) => {
       const abbreviation = measureObj.abbreviation;
       const subCategory = abbreviation.toUpperCase();
 
@@ -1453,5 +1485,44 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+
+  openFormulaFullscreenEdit(measureObj: MeasureObj | null, formControl: AbstractControl | null) {
+    this.availableCounters = measureObj?.counterList.map(c => ({ name: c.name, id: c.id, displayName: c.name || '' })) || [];
+    this.initialFormula = formControl?.value || '';
+    this.showFullscreenFormulaEditor = true;
+    this._kpiFormulaEditFc = formControl;
+  }
+
+  closeFormulaFullscreenEdit() {
+    this.showFullscreenFormulaEditor = false;
+    this.availableCounters = [];
+    this.initialFormula = '';
+    this.newFormula = '';
+    this.isValid = false;
+    this._kpiFormulaEditFc = null;
+  }
+
+
+
+  onFormulaChange(formula: string) {
+    this.newFormula = formula;
+    console.log('Formula changed:', formula);
+  }
+
+  onValidationChange(isValid: boolean) {
+    this.isValid = isValid;
+    console.log('Validation changed:', isValid);
+  }
+
+  saveFormula(): void {
+    if (this.isValid) {
+      if (this._kpiFormulaEditFc) {
+        this._kpiFormulaEditFc.setValue(this.newFormula, { emitEvent: true });
+        this._kpiFormulaEditFc.markAsDirty();
+        this._kpiFormulaEditFc.updateValueAndValidity();
+      }
+      this.closeFormulaFullscreenEdit();
+    }
   }
 }

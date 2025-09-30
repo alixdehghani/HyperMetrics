@@ -11,8 +11,12 @@ export const measureRoutes = [
                 component: Measure
             },
             {
-                path: 'cell-measurement',
-                component: CellMeasurementComponent
+                path: ':typeId/cell-measurement',
+                component: CellMeasurementComponent,
+                data: {
+                    "neVersion": "faraabeen_default",
+                    "neTypeName": "eNodeB"
+                }
             }
         ]
     }
