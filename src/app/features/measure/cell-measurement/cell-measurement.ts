@@ -1,12 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { AbstractControl, FormArray, FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { interval, Subject, takeUntil } from 'rxjs';
+import { Subject, takeUntil } from 'rxjs';
 import { FormBuilder, FormGroup } from '@angular/forms';
-import { evaluate } from 'mathjs';
 import { ActivatedRoute } from '@angular/router';
 import { FormulaInput } from '../../../shared/formula-input/formula-input';
 import { UNITS } from '../../../core/interfaces/unit.types';
+import { FormulaParserService } from '../../../core/helper/formula-helper';
 
 interface measurementData {
   measureType: string,
@@ -104,6 +104,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
 
   form: FormGroup;
   private _route = inject(ActivatedRoute);
+  private formulaParser = inject(FormulaParserService);
   constructor(private fb: FormBuilder) {
     this.neTypeId = this._route.snapshot.paramMap.get('typeId') || '';
     this.neVersion = this._route.snapshot.data['neVersion'] || '';
@@ -678,48 +679,20 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     if (!formula || !formula.trim()) {
       return ["Formula is empty."];
     }
-
-    const errors: string[] = [];
-
-    // Allowed tokens: numbers, operators, parentheses, counter names
-    const allowedOperators = /^[+\-*/()]+$/;
-
-    // Split by whitespace and operators, but keep numbers and words
-    const tokens = formula
-      .split(/([^a-zA-Z0-9_]+)/) // split but keep delimiters
-      .map(t => t.trim())
-      .filter(t => t.length > 0);
-
-    const counterNames = availableCounters.map(c => c.name);
-
-    for (const token of tokens) {
-      if (!isNaN(Number(token))) {
-        // ✅ number
-        continue;
-      } else if (allowedOperators.test(token)) {
-        // ✅ operator
-        continue;
-      } else if (counterNames.includes(token)) {
-        // ✅ counter name
-        continue;
-      } else {
-        // ❌ invalid
-        errors.push(`Invalid token "${token}" in formula`);
-      }
-    }
-    if (errors.length > 0) {
-      return errors;
-    }
-    const replacedTokens = tokens.map(token => counterNames.includes(token) ? '1' : token);
-    const evalFormula = replacedTokens.join(' ');
-    try {
-      evaluate(evalFormula);
-    } catch (err) {
-      console.error("Evaluation Error:", err);
-      errors.push(`Error evaluating formula: ${err}`);
-    }
-
-    return errors;
+    const scope = this.availableCounters.reduce((acc, c) => {
+            acc[c.name] = 1;
+            return acc;
+        }, {} as Record<string, number>);
+        
+        const result = this.formulaParser.parseFormula(formula, scope);        
+        const validationMathjs = result.validationMathjs;
+        const validationCustom = result.validationCustom;
+        const isValid = validationMathjs.valid && validationCustom.valid;
+        const errorMessage = [validationMathjs.error || '' , validationCustom.error || ''].join(' ') || '';
+        if (!isValid) {
+          return [errorMessage]
+        }
+        return [];
   }
 
   validateCounterName(counter: Counter): string[] {
@@ -747,6 +720,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   }
 
   validateKpiTitle(kpi: KPI): string[] {
+    return []
     const errors: string[] = [];
     if (!kpi.title || !kpi.title.trim()) {
       errors.push("KPI title is required.");
@@ -931,7 +905,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     }
     this.newKpiForm = this.fb.group({
       name: ['', [Validators.required]],
-      title: ['', [Validators.required]],
+      title: ['', ],
       formula: ['', [Validators.required]],
       indicator: ['p', [Validators.required]],
       unit: ['percent', [Validators.required]],
@@ -993,11 +967,11 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const titleErrors = this.validateKpiTitle(newKpi);
-    if (titleErrors.length > 0) {
-      alert("❌ Invalid KPI title:\n" + titleErrors.join('\n'));
-      return;
-    }
+    // const titleErrors = this.validateKpiTitle(newKpi);
+    // if (titleErrors.length > 0) {
+    //   alert("❌ Invalid KPI title:\n" + titleErrors.join('\n'));
+    //   return;
+    // }
     // Validate formula
     const formulaErrors = this.validateFormula(newKpi.formula, measureObj.counterList);
     if (formulaErrors.length > 0) {
@@ -1139,11 +1113,11 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       this.cancelKpiTitleEdit(kpiFormControl, kpi);
       return;
     }
-    if (this.validateKpiTitle(kpiFormControl.value).length > 0) {
-      alert("❌ Invalid KPI Title:\n" + this.validateKpiTitle(kpiFormControl.value).join('\n'));
-      this.cancelKpiTitleEdit(kpiFormControl, kpi);
-      return;
-    }
+    // if (this.validateKpiTitle(kpiFormControl.value).length > 0) {
+    //   alert("❌ Invalid KPI Title:\n" + this.validateKpiTitle(kpiFormControl.value).join('\n'));
+    //   this.cancelKpiTitleEdit(kpiFormControl, kpi);
+    //   return;
+    // }
 
     // Apply change to KPI
     kpi.title = newTitle;
@@ -1507,12 +1481,10 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
 
   onFormulaChange(formula: string) {
     this.newFormula = formula;
-    console.log('Formula changed:', formula);
   }
 
   onValidationChange(isValid: boolean) {
     this.isValid = isValid;
-    console.log('Validation changed:', isValid);
   }
 
   saveFormula(): void {

@@ -1,9 +1,9 @@
 // formula-input.component.ts
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewChild } from '@angular/core';
-import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { parse } from 'mathjs';
-import { Counter } from '../../features/measure/measure.service';
+import { Component, ElementRef, EventEmitter, HostListener, inject, Input, Output, Type, ViewChild } from '@angular/core';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { FormulaParserService } from '../../core/helper/formula-helper';
+import { ClassifiedToken, TokenType } from '../../core/interfaces/classified-token.interface';
 interface CounterItem {
     id: string;
     name: string;
@@ -11,7 +11,7 @@ interface CounterItem {
 }
 
 interface FormulaToken {
-    type: 'counter' | 'operator' | 'text';
+    type: TokenType;
     value: string;
     id?: string;
     startIndex: number;
@@ -43,9 +43,8 @@ export class FormulaInput {
     formulaTokens: FormulaToken[] = [];
     validationError: string = '';
 
-    private readonly allowedOperators = /^[+\-*/()]+$/;
     private blurTimeout: any;
-
+    private formulaParser = inject(FormulaParserService);
     ngOnInit() {
         if (this.initialValue) {
             this.parseInitialFormula(this.initialValue);
@@ -148,7 +147,7 @@ export class FormulaInput {
 
     selectCounter(counter: CounterItem) {
         this.addToken({
-            type: 'counter',
+            type: 'identifier',
             value: counter.name,
             id: counter.id,
             startIndex: 0,
@@ -164,27 +163,25 @@ export class FormulaInput {
     }
 
     processCurrentInput() {
+        
         const input = this.currentInput.trim();
         if (!input) return;
+        const scope = this.counters.reduce((acc, c) => {
+            acc[c.name] = 1;
+            return acc;
+        }, {} as Record<string, number>);
 
-        // Check if it's an operator
-        if (this.allowedOperators.test(input)) {
-            this.addToken({
-                type: 'operator',
-                value: input,
-                startIndex: 0,
-                endIndex: 0
-            });
-        } else {
-            // Treat as text/invalid
-            this.addToken({
-                type: 'text',
-                value: input,
-                startIndex: 0,
-                endIndex: 0
-            });
-        }
-
+        const result = this.formulaParser.parseFormula(input, scope);
+        const tokens = result.tokens;
+        this.formulaTokens = [...this.formulaTokens, ...tokens.map((t, index) => ({
+            type: t.type,
+            value: t.token,
+            id: this.counters.find(c => c.name === t.token)?.id,
+            startIndex: this.formulaTokens.length + 1 + index,
+            endIndex: this.formulaTokens.length + 1 + index
+        }))];        
+        this.emitFormulaChange();
+        this.validateFormula();
         this.currentInput = '';
         this.showSuggestions = false;
     }
@@ -197,48 +194,31 @@ export class FormulaInput {
 
     removeToken(index: number) {
         this.formulaTokens.splice(index, 1);
+        
         this.emitFormulaChange();
         this.validateFormula();
         this.focusInput();
     }
 
     private parseInitialFormula(formula: string) {
-        // Simple parsing - you might want to make this more sophisticated
-        const tokens = formula.match(/(\w+|[+\-*/()]|\s+)/g) || [];
+        const scope = this.counters.reduce((acc, c) => {
+            acc[c.name] = 1;
+            return acc;
+        }, {} as Record<string, number>);
 
-        this.formulaTokens = tokens
-            .filter(token => token.trim())
-            .map((token, index) => {
-                const trimmedToken = token.trim();
-                const counter = this.counters.find(c => c.name === trimmedToken);
-
-                if (counter) {
-                    return {
-                        type: 'counter' as const,
-                        value: counter.name,
-                        id: counter.id,
-                        startIndex: index,
-                        endIndex: index
-                    };
-                } else if (this.allowedOperators.test(trimmedToken)) {
-                    return {
-                        type: 'operator' as const,
-                        value: trimmedToken,
-                        startIndex: index,
-                        endIndex: index
-                    };
-                } else {
-                    return {
-                        type: 'text' as const,
-                        value: trimmedToken,
-                        startIndex: index,
-                        endIndex: index
-                    };
-                }
-            });
-
+        const result = this.formulaParser.parseFormula(formula, scope);
+        const tokens = result.tokens;
+        this.formulaTokens = tokens.map((t, index) => ({
+            type: t.type,
+            value: t.token,
+            id: this.counters.find(c => c.name === t.token)?.id,
+            startIndex: index,
+            endIndex: index
+        }));
+        
         this.emitFormulaChange();
         this.validateFormula();
+
     }
 
     private emitFormulaChange() {
@@ -249,29 +229,16 @@ export class FormulaInput {
     }
 
     private validateFormula() {
-        // Basic validation
-        let isValid = true;
-        let errorMessage = '';
-
-        // Check for invalid characters in text tokens
-        const textTokens = this.formulaTokens.filter(t => t.type === 'text');
-        if (textTokens.length > 0) {
-            const invalidTokens = textTokens.filter(t => isNaN(Number(t.value)));
-            if (invalidTokens.length > 0) {
-            isValid = false;
-            errorMessage = `Invalid tokens: ${invalidTokens.map(t => t.value).join(', ')}`;
-            }
-        }
-
-        // Check for balanced parentheses
-        const formulaStr = this.formulaTokens.map(t => t.value).join(' ');
-        try {
-            parse(formulaStr);
-        } catch (err: any) {
-            isValid = false;
-            errorMessage = err?.message || 'Invalid formula syntax';
-        }
-
+        const scope = this.counters.reduce((acc, c) => {
+            acc[c.name] = 1;
+            return acc;
+        }, {} as Record<string, number>);
+        const currentInput = this.formulaTokens.map(f => f.value).join(' ')
+        const result = this.formulaParser.parseFormula(currentInput, scope);        
+        const validationMathjs = result.validationMathjs;
+        const validationCustom = result.validationCustom;
+        const isValid = validationMathjs.valid && validationCustom.valid;
+        const errorMessage = [validationMathjs.error || '' , validationCustom.error || ''].join(' ') || '';
         this.validationError = errorMessage;
         this.validationChange.emit(isValid);
     }

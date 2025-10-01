@@ -10,7 +10,7 @@
           <ng-container *ngFor="let token of formulaTokens; let i = index">
             <!-- Counter tokens -->
             <span 
-              *ngIf="token.type === 'counter'"
+              *ngIf="token.type === 'identifier'"
               class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-sm font-medium"
             >
               {{ token.value }}
@@ -24,7 +24,7 @@
             </span>
             <!-- Operator/text tokens -->
             <span 
-              *ngIf="token.type !== 'counter'"
+              *ngIf="token.type !== 'identifier'"
               class="text-gray-700 px-1 py-0.5 rounded-md text-sm cursor-pointer hover:bg-gray-200"
               (click)="removeToken(i)"
             >

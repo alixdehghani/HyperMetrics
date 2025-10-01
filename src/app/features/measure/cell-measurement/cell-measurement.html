@@ -349,11 +349,11 @@
                         <input formControlName="name" class="border rounded px-2 py-1 w-full font-medium"
                           placeholder="KPI name" />
                       </div>
-                      <div class="mb-2">
+                      <!-- <div class="mb-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Title:</label>
                         <input formControlName="title" class="border rounded px-2 py-1 w-full font-medium"
                           placeholder="KPI title" />
-                      </div>
+                      </div> -->
                       <div class="mb-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">indicator:</label>
                         <select formControlName="indicator" class="border rounded px-2 py-1 w-full cursor-pointer">
@@ -405,7 +405,7 @@
                           (click)="cancelKpiNameEdit(kpiControl, measurementData.measureObjList[i].kpiList[ki])"
                           class="text-red-600 text-sm cursor-pointer">Cancel</button>
                       </div>
-                      <div class="mb-2 font-semibold flex gap-2">
+                      <!-- <div class="mb-2 font-semibold flex gap-2">
                         <span class="text-gray-500">Title:</span>
                         <input formControlName="title" class="border rounded px-1 w-full" placeholder="KPI Title" />
                         <button *ngIf="editingKpiTitle[measurementData.measureObjList[i].kpiList[ki].kpiId]"
@@ -414,7 +414,7 @@
                         <button *ngIf="editingKpiTitle[measurementData.measureObjList[i].kpiList[ki].kpiId]"
                           (click)="cancelKpiTitleEdit(kpiControl, measurementData.measureObjList[i].kpiList[ki])"
                           class="text-red-600 text-sm cursor-pointer">Cancel</button>
-                      </div>
+                      </div> -->
                       <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
                         <div class="text-xs">
                           <span class="text-gray-500">KPI ID:</span>
@@ -545,7 +545,7 @@
 </div>
 
 <div *ngIf="showFullscreenFormulaEditor"
-  class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+  class="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
   <div class="bg-white rounded-lg w-full max-w-3xl p-6 relative">
     <h2 class="text-xl font-semibold mb-4">Edit Formula</h2>
     <math-formula-autocomplete [counters]="availableCounters" [initialValue]="initialFormula"
