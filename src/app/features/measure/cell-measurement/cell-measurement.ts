@@ -427,11 +427,15 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   }
   filterMeasurementObjects() {
     const term = this.searchTerm.toLowerCase().trim();
-    if (!term) {
+    if (!term) {      
       this.measurementData.measureObjList.forEach(obj => {
         obj._show = true;
         obj.counterList.forEach(counter => counter._show = true);
         obj.kpiList.forEach(kpi => kpi._show = true);
+        obj.counterSearchTerm = '';
+        obj.kpiSearchTerm = '';
+        this.filterCounters(obj);
+        this.filterKpis(obj);
       })
       return;
     }
@@ -448,7 +452,15 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
         (filteredCounterList && filteredCounterList.length > 0) ||
         (filteredKpiList && filteredKpiList.length > 0)
       ) {
-        obj._show = true
+        obj._show = true;
+        if (filteredCounterList.length > 0) {
+          obj.counterSearchTerm = term;
+          this.filterCounters(obj)
+        }
+        if (filteredKpiList.length > 0) {
+          obj.kpiSearchTerm = term;
+          this.filterKpis(obj)
+        }
       } else {
         obj._show = false
       }

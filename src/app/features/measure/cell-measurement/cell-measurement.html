@@ -169,7 +169,7 @@
       <!-- Measurement Objects -->
       <div formArrayName="measureObjList">
         <div *ngFor="let measureObjControl of getMeasureObjControls(); let i = index" [formGroupName]="i"
-          class="border border-gray-300 rounded-lg mb-4">
+          class="border border-gray-300 rounded-lg mb-4" [ngStyle]="{ display: measurementData.measureObjList[i]._show ? 'block' : 'none' }">
 
           <div *ngIf="measurementData.measureObjList[i]._show" class="sticky top-0">
             <div
