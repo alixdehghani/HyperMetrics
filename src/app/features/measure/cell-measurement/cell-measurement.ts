@@ -427,7 +427,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   }
   filterMeasurementObjects() {
     const term = this.searchTerm.toLowerCase().trim();
-    if (!term) {      
+    if (!term) {
       this.measurementData.measureObjList.forEach(obj => {
         obj._show = true;
         obj.counterList.forEach(counter => counter._show = true);
@@ -691,20 +691,28 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     if (!formula || !formula.trim()) {
       return ["Formula is empty."];
     }
-    const scope = this.availableCounters.reduce((acc, c) => {
-            acc[c.name] = 1;
-            return acc;
-        }, {} as Record<string, number>);
-        
-        const result = this.formulaParser.parseFormula(formula, scope);        
-        const validationMathjs = result.validationMathjs;
-        const validationCustom = result.validationCustom;
-        const isValid = validationMathjs.valid && validationCustom.valid;
-        const errorMessage = [validationMathjs.error || '' , validationCustom.error || ''].join(' ') || '';
-        if (!isValid) {
-          return [errorMessage]
-        }
-        return [];
+    const errors = [];
+    const scope = availableCounters.reduce((acc, c) => {
+      acc[c.name] = 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const result = this.formulaParser.parseFormula(formula, scope);
+    const validationMathjs = result.validationMathjs;
+    const validationCustom = result.validationCustom;
+    if (validationCustom.error) {
+      errors.push(validationCustom.error)
+    }
+    if (validationMathjs.error) {
+      errors.push(validationMathjs.error)
+    }
+    const counterNames = availableCounters.map(c => c.name);
+    for (const token of result.tokens.filter(t => t.type === 'identifier').map(t => t.token)) {
+      if (!counterNames.includes(token)) {
+        errors.push(`Invalid token "${token}" in formula`);
+      }
+    }
+    return errors;
   }
 
   validateCounterName(counter: Counter): string[] {
@@ -917,7 +925,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     }
     this.newKpiForm = this.fb.group({
       name: ['', [Validators.required]],
-      title: ['', ],
+      title: ['',],
       formula: ['', [Validators.required]],
       indicator: ['p', [Validators.required]],
       unit: ['percent', [Validators.required]],
@@ -1239,7 +1247,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       measureObj.counterList.forEach(c => {
         nameToNumericId[c.name] = c._numericId!;
       });
-      let normalized = formula;  // start with original
+      let normalized = formula.replace(/\s+/g, ''); // remove all whitespace (spaces, tabs, newlines)
       Object.entries(nameToNumericId).forEach(([name, numId]) => {
         const regex = new RegExp(`\\b${name}\\b`, "g");
         normalized = normalized.replace(regex, `$${numId}$`);
@@ -1268,7 +1276,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     this.measurementData.measureObjList.forEach(measureObj => {
       const measureObjStructure = {
         "measureObjId": `${this.neTypeId}${this.measurementData.measureId}${measureObj.measureObjId}`,
-        "name": measureObj.name,
+        "name": measureObj.name.trim(),
         "dataUpPeriodMod": "0",
         "counterList": [] as string[],
         "kpiList": [] as any[]
@@ -1354,7 +1362,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
 
     // Process each measureObj in the hyperCounterKpi
     this.form.getRawValue().measureObjList.forEach((measureObj: MeasureObj) => {
-      const abbreviation = measureObj.abbreviation;
+      const abbreviation = measureObj.abbreviation.replace('-', '');
       const targetKey = abbreviation.toLocaleLowerCase();
 
       if (targetKey) {
@@ -1404,9 +1412,10 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
 
     // Helper function to parse formula string and convert to array format
     function parseFormulaToArray(formulaString: string): string[] {
+      let normalized = formulaString.replace(/\s+/g, ''); // remove all whitespace (spaces, tabs, newlines)
       // Do not remove parentheses from the start/end
       // Split by operators and parentheses, keeping the delimiters
-      const tokens = formulaString.split(/(\+|\-|\*|\/|\(|\))/g).filter(token => token.trim() !== '');
+      const tokens = normalized.split(/(\+|\-|\*|\/|\(|\))/g).filter(token => token.trim() !== '');
 
       // Clean up tokens and return array
       return tokens.map(token => token.trim());
@@ -1467,6 +1476,50 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     const a = document.createElement('a');
     a.href = url;
     a.download = 'default_kpi_formulas.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  downloadOssE2eTestingFile() {
+    const obj: any = {};
+    this.form.getRawValue().measureObjList.forEach((measureObj: MeasureObj) => {
+      obj[measureObj.name] = {
+        counters: measureObj.counterList.map(c => ({ name: c.name, isActive: false })),
+        kpis: measureObj.kpiList.map(k => ({ name: k.name, isActive: false })),
+      }
+    });
+    obj["timeMode"] = [
+      {
+        "name": "Continuous",
+        "isActive": false,
+        "options": null
+      },
+      {
+        "name": "Section Time",
+        "isActive": true,
+        "options": {
+          "startTime": "12:34",
+          "endTime": "13:30"
+        }
+      }
+    ];
+    obj["dateRange"] = [
+      {
+        "name": "Custom",
+        "isActivce": true,
+        "startDate": "2025-10-01",
+        "endDate": "2025-10-13"
+      }
+    ];
+    const blob = new Blob([JSON.stringify(obj, null, 2)], {
+      type: 'application/json'
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'oss-config.json';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

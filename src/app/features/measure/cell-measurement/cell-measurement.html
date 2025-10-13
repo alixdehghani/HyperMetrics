@@ -39,6 +39,10 @@
         class="px-2 py-1 rounded-lg font-medium bg-yellow-500 text-white hover:bg-yellow-600 cursor-pointer text-sm">
         📥 Download Default Formula File
       </button>
+      <button (click)="downloadOssE2eTestingFile()"
+        class="px-2 py-1 rounded-lg font-medium bg-yellow-500 text-white hover:bg-yellow-600 cursor-pointer text-sm">
+        📥 Download OSS e2e testing file
+      </button>
 
     </div>
   </div>
@@ -78,7 +82,7 @@
     <!-- Overview Section -->
     <div
       class="flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 via-purple-50 to-yellow-50 rounded-lg p-6 shadow-md mb-4 border border-gray-200">
-      <div class="flex items-center gap-4 mb-4">
+      <div class="flex flex-col items-center gap-4 mb-4 xl:flex-row">
         <span class="inline-flex items-center px-3 py-1 bg-gray-200 text-gray-800 rounded-full  font-semibold">
           <!-- measurement-objects-cubes.svg -->
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48" role="img"
@@ -459,9 +463,9 @@
                       </div>
 
                       <div class="mb-3">
-                        <input disabled="true"
+                        <textarea disabled="true" rows="2"
                           value="{{getKpiFormulaForExport(measurementData.measureObjList[i].kpiList[ki])}}"
-                          class="ml-2 font-mono border rounded px-1 w-full bg-gray-100 text-gray-500 cursor-not-allowed" />
+                          class="ml-2 font-mono border rounded px-1 w-full bg-gray-100 text-gray-500 cursor-not-allowed"></textarea>
                       </div>
 
                       <!-- KPI dependency warning -->

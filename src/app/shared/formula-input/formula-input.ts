@@ -163,7 +163,7 @@ export class FormulaInput {
     }
 
     processCurrentInput() {
-        
+
         const input = this.currentInput.trim();
         if (!input) return;
         const scope = this.counters.reduce((acc, c) => {
@@ -179,7 +179,7 @@ export class FormulaInput {
             id: this.counters.find(c => c.name === t.token)?.id,
             startIndex: this.formulaTokens.length + 1 + index,
             endIndex: this.formulaTokens.length + 1 + index
-        }))];        
+        }))];
         this.emitFormulaChange();
         this.validateFormula();
         this.currentInput = '';
@@ -194,7 +194,7 @@ export class FormulaInput {
 
     removeToken(index: number) {
         this.formulaTokens.splice(index, 1);
-        
+
         this.emitFormulaChange();
         this.validateFormula();
         this.focusInput();
@@ -215,7 +215,7 @@ export class FormulaInput {
             startIndex: index,
             endIndex: index
         }));
-        
+
         this.emitFormulaChange();
         this.validateFormula();
 
@@ -233,13 +233,25 @@ export class FormulaInput {
             acc[c.name] = 1;
             return acc;
         }, {} as Record<string, number>);
+        const errors = [];
         const currentInput = this.formulaTokens.map(f => f.value).join(' ')
-        const result = this.formulaParser.parseFormula(currentInput, scope);        
+        const result = this.formulaParser.parseFormula(currentInput, scope);
         const validationMathjs = result.validationMathjs;
         const validationCustom = result.validationCustom;
-        const isValid = validationMathjs.valid && validationCustom.valid;
-        const errorMessage = [validationMathjs.error || '' , validationCustom.error || ''].join(' ') || '';
-        this.validationError = errorMessage;
+        if (validationCustom.error) {
+            errors.push(validationCustom.error)
+        }
+        if (validationMathjs.error) {
+            errors.push(validationMathjs.error)
+        }
+        const counterNames = this.counters.map(c => c.name);
+        for (const token of result.tokens.filter(t => t.type === 'identifier').map(t => t.token)) {
+            if (!counterNames.includes(token)) {
+                errors.push(`Invalid token "${token}" in formula`);
+            }
+        }        
+        const isValid = validationMathjs.valid && validationCustom.valid && errors.length === 0;
+        this.validationError = errors.join(', ');
         this.validationChange.emit(isValid);
     }
 }
