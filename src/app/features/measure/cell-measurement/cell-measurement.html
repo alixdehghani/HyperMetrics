@@ -10,8 +10,34 @@
     <div>
       <h1 class="text-3xl font-bold text-gray-900 mb-2">Measurement Configuration</h1>
       <div class="flex items-center space-x-4 text-gray-600">
-        <span><strong>Type:</strong> {{ measurementData.measureType }}</span>
-        <span><strong>ID:</strong> {{ measurementData.measureId }}</span>
+        <form [formGroup]="form" class="flex justify-center gap-2">
+          <div class="flex flex-col items-start">
+            <div class="flex justify-center gap-2">
+              <span class="text-gray-500">Type:</span>
+              <input formControlName="measureType" class="border rounded px-2 py-1 w-full font-medium mb-2"
+                placeholder="Type" />
+            </div>
+            <div class="flex justify-center gap-2">
+              <button *ngIf="editingMeasureType" (click)="confirmMeasureTypeChange()"
+                class="text-green-600 text-sm cursor-pointer">Save</button>
+              <button *ngIf="editingMeasureType" (click)="cancelMeasureTypeEdit()"
+                class="text-red-600 text-sm cursor-pointer">Cancel</button>
+            </div>
+          </div>
+          <div class="flex flex-col items-start">
+            <div class="flex justify-center gap-2">
+              <span class="text-gray-500">Id:</span>
+              <input formControlName="measureId" class="border rounded px-2 py-1 w-full font-medium mb-2"
+                placeholder="Id" />
+            </div>
+            <div class="flex justify-center gap-2">
+              <button *ngIf="editingMeasureId" (click)="confirmMeasureIdChange()"
+                class="text-green-600 text-sm cursor-pointer">Save</button>
+              <button *ngIf="editingMeasureId" (click)="cancelMeasureIdEdit()"
+                class="text-red-600 text-sm cursor-pointer">Cancel</button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
     <div class="flex flex-col space-y-2 mt-2">
@@ -74,10 +100,10 @@
       <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="filterMeasurementObjects()"
         placeholder="Search Measurement Objects..."
         class="border border-gray-300 rounded-lg px-4 py-2 w-full max-w-md" />
-      <!-- <button (click)="addMeasurementObject()" disabled
+      <button (click)="startAddingNewMeasureObj()"
         class="bg-green-600 text-white px-4 py-2 rounded-lg font-medium cursor-pointer">
-        + Add Measurement Object
-      </button> -->
+        + Add new Measurement Object
+      </button>
     </div>
     <!-- Overview Section -->
     <div
@@ -166,6 +192,26 @@
       </div>
     </div>
 
+    <div *ngIf="addingNewMeasureObj"
+      class="flex items-center space-x-3 bg-gray-50 p-4 cursor-pointer hover:bg-gray-100 md:flex-row flex-col items-start border border-gray-300 rounded-lg mb-4">
+
+      <form [formGroup]="newMeasureObjForm">
+        <h3 class="font-semibold text-lg flex p-2">
+          Add new measure object
+        </h3>
+        <div class="mb-2 font-semibold flex gap-4 items-center justify-center">
+          <span class="text-gray-500">Name:</span>
+          <input formControlName="name" class="border rounded px-2 py-1 w-full font-medium mb-2" placeholder="name" />
+          <span class="text-gray-500">Abbreviation:</span>
+          <input formControlName="abbreviation" class="border rounded px-2 py-1 w-full font-medium mb-2"
+            placeholder="abbreviation" />
+        </div>
+        <div class="flex gap-2">
+          <button (click)="confirmAddNewMeasureObj()" class="text-green-600 text-sm cursor-pointer">Save</button>
+          <button (click)="cancelAddNewMeasureObj()" class="text-red-600 text-sm cursor-pointer">Cancel</button>
+        </div>
+      </form>
+    </div>
     <!-- Replace the existing form tag and its content -->
     <form [formGroup]="form">
       <!-- Header section stays the same -->
@@ -173,7 +219,8 @@
       <!-- Measurement Objects -->
       <div formArrayName="measureObjList">
         <div *ngFor="let measureObjControl of getMeasureObjControls(); let i = index" [formGroupName]="i"
-          class="border border-gray-300 rounded-lg mb-4" [ngStyle]="{ display: measurementData.measureObjList[i]._show ? 'block' : 'none' }">
+          class="border border-gray-300 rounded-lg mb-4"
+          [ngStyle]="{ display: measurementData.measureObjList[i]._show ? 'block' : 'none' }">
 
           <div *ngIf="measurementData.measureObjList[i]._show" class="sticky top-0">
             <div
@@ -184,10 +231,31 @@
                 <span *ngIf="!expandedSections['measureObj-' + i]">▶</span>
                 <span class="text-blue-600">🗄️</span>
               </div>
-              <div>
-                <h3 class="font-semibold text-lg">{{ measureObjControl.get('name')?.value }} <span
+              <div *ngIf="!editingMeasureObjName[measurementData.measureObjList[i].measureObjId]">
+                <h3 class="font-semibold text-lg flex"> {{ measureObjControl.get('name')?.value }} <span
                     *ngIf="measureObjControl.get('abbreviation')?.value">({{measureObjControl.get('abbreviation')?.value}})</span>
+                  <span class="text-3xl px-2"
+                    (click)="$event.stopPropagation(); onObjectMeasureTitleEditClick(measurementData.measureObjList[i].measureObjId)">✎</span>
                 </h3>
+                <p class="text-gray-600 text-sm">ID: {{ measurementData.measureObjList[i].measureObjId }}</p>
+
+              </div>
+              <div *ngIf="editingMeasureObjName[measurementData.measureObjList[i].measureObjId]"
+                (click)="$event.stopPropagation()">
+                <div class="mb-2 font-semibold flex gap-2 items-center justify-center">
+                  <span class="text-gray-500">name:</span>
+                  <input formControlName="name" class="border rounded px-2 py-1 w-full font-medium mb-2"
+                    placeholder="name" />
+                  <span class="text-gray-500">Abbreviation:</span>
+                  <input formControlName="abbreviation" class="border rounded px-2 py-1 w-full font-medium mb-2"
+                    placeholder="abbreviation" />
+                </div>
+                <div class="flex gap-2">
+                  <button (click)="confirmMeasureObjTitleChange(measureObjControl, measurementData.measureObjList[i])"
+                    class="text-green-600 text-sm cursor-pointer">Save</button>
+                  <button (click)="cancelMeasureObjTitleEdit(measureObjControl, measurementData.measureObjList[i])"
+                    class="text-red-600 text-sm cursor-pointer">Cancel</button>
+                </div>
                 <p class="text-gray-600 text-sm">ID: {{ measurementData.measureObjList[i].measureObjId }}</p>
               </div>
               <div class="flex space-x-2 md:gap-4 mb-3">
@@ -206,22 +274,18 @@
                   Error in Counters
                 </span>
               </div>
-              <!-- <button (click)="removeMeasurementObject(i)"
-                class="ml-auto text-red-600 text-sm cursor-pointer">Remove</button> -->
+              <button (click)="removeMeasurementObject(i)"
+                class="ml-auto text-red-600 text-sm cursor-pointer">Remove</button>
             </div>
-            
+
           </div>
 
-          <div *ngIf="expandedSections['measureObj-' + i]" class="p-4">            
+          <div *ngIf="expandedSections['measureObj-' + i]" class="p-4">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <!-- Counters Section -->
               <div class="flex flex-col gap-2">
                 <div class="flex items-center justify-between mb-4">
                   <h4 class="font-semibold text-blue-900">Counters</h4>
-                  <!-- <button type="button" (click)="addCounter(measurementData.measureObjList[i])"
-                      class="bg-green-500 text-white px-2 py-1 rounded text-xs cursor-pointer">
-                      + Add
-                    </button> -->
                   <button type="button" [disabled]="addingNewCounter" (click)="startAddingNewCounter()"
                     [ngClass]="addingNewCounter ? 'bg-green-300 text-gray-400 cursor-not-allowed' : 'bg-green-500 text-white cursor-pointer'"
                     class="px-2 py-1 rounded text-xs">

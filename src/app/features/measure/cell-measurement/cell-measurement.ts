@@ -71,8 +71,14 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   editingKpiName: { [key: string]: boolean } = {};
   editingKpiTitle: { [key: string]: boolean } = {};
   editingKpiFormula: { [key: string]: boolean } = {};
+  editingMeasureType = false;
+  editingMeasureId = false;
+  editingMeasureObjName: { [key: string]: boolean } = {};;
+  editingMeasureObjAbbreviation: { [key: string]: boolean } = {};
   addingNewCounter = false;
+  addingNewMeasureObj = false;
   newCounterForm!: FormGroup;
+  newMeasureObjForm!: FormGroup;
   newKpiForm!: FormGroup;
   addingNewKpi = false;
   showRestoreBanner = false;
@@ -151,7 +157,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   private _initForm() {
     const measureObjFormGroups = this.measurementData.measureObjList.map(obj =>
       this.fb.group({
-        measureObjId: [obj.measureObjId],
+        // measureObjId: [obj.measureObjId],
         name: [obj.name],
         abbreviation: [obj.abbreviation],
         counterList: this.fb.array(
@@ -182,7 +188,32 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       measureId: [this.measurementData.measureId],
       measureObjList: this.fb.array(measureObjFormGroups)
     });
-
+    this.form.get('measureType')?.valueChanges.pipe(takeUntil(this.$destroy)).subscribe(() => this.startEditingMeasureType());
+    this.form.get('measureId')?.valueChanges.pipe(takeUntil(this.$destroy)).subscribe(() => this.startEditingMeasureId());
+    // (this.form.get('measureObjList') as FormArray).controls.forEach((measureObjGroup, objIndex) => {
+    //   const measureNameControl = (measureObjGroup.get('name') as FormControl);
+    //   measureNameControl?.valueChanges
+    //     .pipe(takeUntil(this.$destroy))
+    //     .subscribe((newName: string) => {
+    //       // this.startEditingCounterName(this.measurementData.measureObjList[objIndex].counterList[counterIndex]);
+    //     });
+    // });
+    // (this.form.get('measureObjList') as FormArray).controls.forEach((measureObjGroup, objIndex) => {
+    //   const measureObjIdControl = (measureObjGroup.get('measureObjId') as FormControl);
+    //   measureObjIdControl?.valueChanges
+    //     .pipe(takeUntil(this.$destroy))
+    //     .subscribe((newMeasureObjId: string) => {
+    //       // this.startEditingCounterName(this.measurementData.measureObjList[objIndex].counterList[counterIndex]);
+    //     });
+    // });
+    // (this.form.get('measureObjList') as FormArray).controls.forEach((measureObjGroup, objIndex) => {
+    //   const abbreviationControl = (measureObjGroup.get('abbreviation') as FormControl);
+    //   abbreviationControl?.valueChanges
+    //     .pipe(takeUntil(this.$destroy))
+    //     .subscribe((newAbbreviation: string) => {
+    //       // this.startEditingCounterName(this.measurementData.measureObjList[objIndex].counterList[counterIndex]);
+    //     });
+    // });
     (this.form.get('measureObjList') as FormArray).controls.forEach((measureObjGroup, objIndex) => {
       const counterArray = (measureObjGroup.get('counterList') as FormArray);
       counterArray.controls.forEach((counterGroup, counterIndex) => {
@@ -315,6 +346,11 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   //     next: () => localStorage.setItem('hyper_config', JSON.stringify(this.measurementData))
   //   });
   // }
+
+  onObjectMeasureTitleEditClick(id: string): void {
+    this.editingMeasureObjName[id] = true;
+    this.editingMeasureObjAbbreviation[id] = true;
+  }
 
   convertHyperMeasure() {
     const data = this.measurementData;
@@ -495,59 +531,20 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   // -------------------------------
   // CRUD operations for Measurement Objects
   // -------------------------------
-  addMeasurementObject() {
-    this.measurementData.measureObjList.push({
-      measureObjId: "201101" + (8000 + this.measurementData.measureObjList.length + 1).toString().padStart(4, '0'),
-      name: "New Measurement Object",
-      counterList: [],
-      kpiList: [],
-      abbreviation: ''
-    });
-    this.filterMeasurementObjects();
-  }
 
   removeMeasurementObject(index: number) {
     if (!confirm("Are you sure you want to delete this measurement object?")) {
       return;
     }
     this.measurementData.measureObjList.splice(index, 1);
-    this.filterMeasurementObjects(); // Update filtered view
-  }
-
-  // -------------------------------
-  // CRUD operations for Counters
-  // -------------------------------
-  // Updated add/remove methods to work with FormArrays
-  addCounter(measureObj: MeasureObj) {
-    const measureObjIndex = this.measurementData.measureObjList.indexOf(measureObj);
-
-    // Add to data model
-    measureObj.counterList.push({
-      name: "New Counter",
-      unit: "unit",
-      id: '',
-      cumulative: false,
-      _show: true,
-    });
-
-    // Add to form
-    // const counterArray = this.getCounterControls(measureObjIndex)as FormArray;
     const measureObjArray = this.form.get('measureObjList') as FormArray;
-    const measureObjGroup = measureObjArray.at(measureObjIndex);
-    const counterArray = measureObjGroup.get('counterList') as FormArray;
-    const newCounterGroup = this.fb.group({
-      name: ['New Counter'],
-      unit: ['unit'],
-      id: [{ value: '', disabled: true }],
-      cumulative: [false],
-      _numericId: [''],
-    });
-
-    counterArray.push(newCounterGroup);
-
+    measureObjArray.removeAt(index);
     this._normalizeCountersAndKpis(this.measurementData);
     this._updateMeasurementObject();
   }
+  // -------------------------------
+  // CRUD operations for Counters
+  // -------------------------------
 
   removeCounter(measureObj: MeasureObj, index: number) {
     const counter = measureObj.counterList[index];
@@ -569,41 +566,6 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   // -------------------------------
   // CRUD operations for KPIs
   // -------------------------------
-  addKpi(measureObj: MeasureObj) {
-    const measureObjIndex = this.measurementData.measureObjList.indexOf(measureObj);
-
-    // Add to data model
-    measureObj.kpiList.push({
-      kpiId: '0',
-      formula: "",
-      title: '',
-      name: "New KPI",
-      indicator: "p",
-      unit: 'percent',
-      _usedCounters: [],
-      _show: true,
-    });
-
-    // Add to form
-    const measureObjArray = this.form.get('measureObjList') as FormArray;
-    const measureObjGroup = measureObjArray.at(measureObjIndex);
-    const kpiArray = measureObjGroup.get('kpiList') as FormArray;
-
-    const newKpiGroup = this.fb.group({
-      kpiId: [{ value: '0', disabled: true }],
-      formula: [''],
-      formulaWithCountersId: [''],
-      name: ['New KPI'],
-      indicator: ['p'],
-      unit: ['percent'],
-      _usedCounters: [[]]
-    });
-
-    kpiArray.push(newKpiGroup);
-
-    this._normalizeCountersAndKpis(this.measurementData);
-    this._updateMeasurementObject();
-  }
 
   removeKpi(measureObj: MeasureObj, index: number) {
     const kpi = measureObj.kpiList[index];
@@ -668,6 +630,11 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     return kpi.formulaWithCountersId;
   }
 
+  private _generateMeasureObjId(index: number): string {
+    // index starts from 1
+    const measureObjId = `${String(8000 + index + 1)}`;
+    return measureObjId;
+  }
 
   private _generateCounterId(index: number): string {
     // index starts from 1
@@ -727,6 +694,22 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     return errors;
   }
 
+  validateMeasureObjTitle(measureObj: MeasureObj): string[] {
+    const errors: string[] = [];
+    if (!measureObj.name || !measureObj.abbreviation.trim()) {
+      errors.push("measureObj name adn abbreviation are required.");
+    }
+    const existingNames = this.measurementData.measureObjList.filter(m => m.measureObjId !== measureObj.measureObjId).map(m => m.name);
+    if (existingNames.some(existingName => existingName === measureObj.name)) {
+      errors.push(`${measureObj.name} is already used by another measure objects. measure objects names must be unique.`);
+    }
+    const existingAbbr = this.measurementData.measureObjList.filter(m => m.measureObjId !== measureObj.measureObjId).map(m => m.abbreviation);
+    if (existingAbbr.some(abbr => abbr === measureObj.abbreviation)) {
+      errors.push(`${measureObj.abbreviation} is already used by another measure objects. measure objects abbreviation must be unique.`);
+    }
+    return errors;
+  }
+
   validateKpiName(kpi: KPI): string[] {
     const errors: string[] = [];
     if (!kpi.name || !kpi.name.trim()) {
@@ -755,7 +738,8 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   private _normalizeCountersAndKpis(measureObjData: measurementData) {
     let counterIdSeq = 1;
     let kpiIdSeq = 1;
-    measureObjData.measureObjList.forEach(measureObj => {
+    measureObjData.measureObjList.forEach((measureObj, measureIndex) => {
+      measureObj.measureObjId = this._generateMeasureObjId(measureIndex);
       measureObj._show = true;
       // 1. Assign counter IDs
       measureObj.counterList.forEach((counter, i) => {
@@ -894,6 +878,14 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     this.editingCounterName[counter.id] = true;
   }
 
+  startEditingMeasureType(): void {
+    this.editingMeasureType = true;
+  }
+
+  startEditingMeasureId(): void {
+    this.editingMeasureId = true;
+  }
+
   startEditingKpiName(kpi: KPI) {
     this.editingKpiName[kpi.kpiId] = true;
   }
@@ -904,6 +896,19 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
 
   startEditingKpiFormula(kpi: KPI) {
     this.editingKpiFormula[kpi.kpiId] = true;
+  }
+
+  startAddingNewMeasureObj() {
+    if (this.addingNewMeasureObj) {
+      return; // already adding
+    }
+    this.newMeasureObjForm = this.fb.group({
+      name: ['', [Validators.required]],
+      abbreviation: ['', [Validators.required]],
+      counterList: this.fb.array([]),
+      kpiList: this.fb.array([])
+    });
+    this.addingNewMeasureObj = true;
   }
 
   startAddingNewCounter() {
@@ -933,6 +938,40 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     });
     this.addingNewKpi = true;
   }
+
+  confirmAddNewMeasureObj() {
+    if (!this.newMeasureObjForm) return;
+    if (this.newMeasureObjForm.invalid) {
+      alert("Please fill in all required fields for the new measure object.");
+      return;
+    }
+    const newMeasurObj: MeasureObj = {
+      name: this.newMeasureObjForm.get('name')?.value,
+      abbreviation: this.newMeasureObjForm.get('abbreviation')?.value,
+      measureObjId: '',
+      counterList: [],
+      kpiList: [],
+      counterSearchTerm: '',
+      kpiSearchTerm: '',
+      _show: true,
+    };
+    // Validate name uniqueness
+    const nameErrors = this.validateMeasureObjTitle(newMeasurObj);
+    if (nameErrors.length > 0) {
+      alert("❌ Invalid measure object name or abbreviation:\n" + nameErrors.join('\n'));
+      return;
+    }
+    this.measurementData.measureObjList.push(newMeasurObj);
+    this._normalizeCountersAndKpis(this.measurementData);
+    this.$destroy.next(null); // stop any ongoing subscriptions
+    this.$destroy.complete();
+    this.$destroy = new Subject(); // recreate for future use
+    this._initForm();
+    this.addingNewMeasureObj= false;
+    this.newMeasureObjForm= new FormGroup({});
+    this._updateMeasurementObject();
+  }
+
 
   confirmAddNewCounter(measureObj: MeasureObj) {
     if (!this.newCounterForm) return;
@@ -1014,9 +1053,56 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     this.newKpiForm = new FormGroup({});
   }
 
+  cancelAddNewMeasureObj() {
+    this.addingNewMeasureObj = false;
+    this.newMeasureObjForm = new FormGroup({});
+  }
+
   cancelAddNewCounter() {
     this.addingNewCounter = false;
     this.newCounterForm = new FormGroup({});
+  }
+
+  confirmMeasureTypeChange(): boolean | void {
+    const newName = this.form.get('measureType')?.value;
+    if (newName.trim() === this.measurementData.measureType) {
+      this.cancelMeasureTypeEdit();
+      return;
+    }
+
+    if (!newName) {
+      alert("❌ Invalid Measurment Type name:\n");
+      return;
+    }
+
+    const oldName = this.measurementData.measureType;
+    // Apply change to counter after updating KPIs
+    this.measurementData.measureType = newName;
+    this._normalizeCountersAndKpis(this.measurementData);
+    this._updateMeasurementObject();
+    this.editingMeasureType = false;
+    return true;
+  }
+
+  confirmMeasureIdChange(): boolean | void {
+    const newName = this.form.get('measureId')?.value;
+    if (newName.trim() === this.measurementData.measureId) {
+      this.cancelMeasureIdEdit();
+      return;
+    }
+
+    if (!newName) {
+      alert("❌ Invalid Measurment Id name:\n");
+      return;
+    }
+
+    const oldName = this.measurementData.measureId;
+    // Apply change to counter after updating KPIs
+    this.measurementData.measureId = newName;
+    this._normalizeCountersAndKpis(this.measurementData);
+    this._updateMeasurementObject();
+    this.editingMeasureId = false;
+    return true;
   }
 
   confirmCounterNameChange(counterFormControl: AbstractControl, counter: Counter): boolean | void {
@@ -1075,6 +1161,30 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     this._normalizeCountersAndKpis(this.measurementData);
     this._updateMeasurementObject();
     this.editingCounterName[counter.id] = false;
+    return true;
+  }
+
+  confirmMeasureObjTitleChange(measureObjFormControl: AbstractControl, measureObj: MeasureObj): boolean | void {
+    const newName = measureObjFormControl.get('name')?.value;
+    const newAbbr = measureObjFormControl.get('abbreviation')?.value;
+    if ((newName.trim() === measureObj.name) && (newAbbr.trim() === measureObj.abbreviation)) {
+      this.cancelMeasureObjTitleEdit(measureObjFormControl, measureObj);
+      return;
+    }
+
+    if (this.validateMeasureObjTitle(measureObjFormControl.value).length > 0) {
+      alert("❌ Invalid measure object name or abbreviation:\n" + this.validateMeasureObjTitle(measureObjFormControl.value).join('\n'));
+      this.cancelMeasureObjTitleEdit(measureObjFormControl, measureObj);
+      return;
+    }
+
+    // Apply change to counter after updating KPIs
+    measureObj.name = newName;
+    measureObj.abbreviation = newAbbr;
+    this._normalizeCountersAndKpis(this.measurementData);
+    this._updateMeasurementObject();
+    this.editingMeasureObjName[measureObj.measureObjId] = false;
+    this.editingMeasureObjAbbreviation[measureObj.measureObjId] = false;
     return true;
   }
 
@@ -1154,6 +1264,36 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       nameControl.setValue(counter.name, { emitEvent: false });
     }
     this.editingCounterName[counter.id] = false;
+  }
+
+  cancelMeasureObjTitleEdit(measureObjFormControl: AbstractControl, measureObj: MeasureObj) {
+    // Revert name in form if needed
+    const nameControl = measureObjFormControl.get('name');
+    const abbrControl = measureObjFormControl.get('abbreviation');
+    if (nameControl && nameControl.value !== measureObj.name) {
+      nameControl.setValue(measureObj.name, { emitEvent: false });
+    }
+    if (abbrControl && abbrControl.value !== measureObj.abbreviation) {
+      abbrControl.setValue(measureObj.abbreviation, { emitEvent: false });
+    }
+    this.editingMeasureObjName[measureObj.measureObjId] = false;
+    this.editingMeasureObjAbbreviation[measureObj.measureObjId] = false;
+  }
+
+  cancelMeasureTypeEdit(): void {
+    const nameControl = this.form.get('measureType');
+    if (nameControl && nameControl.value !== this.measurementData.measureType) {
+      nameControl.setValue(this.measurementData.measureType, { emitEvent: false });
+    }
+    this.editingMeasureType = false;
+  }
+
+  cancelMeasureIdEdit(): void {
+    const nameControl = this.form.get('measureId');
+    if (nameControl && nameControl.value !== this.measurementData.measureId) {
+      nameControl.setValue(this.measurementData.measureId, { emitEvent: false });
+    }
+    this.editingMeasureId = false;
   }
 
   cancelKpiFormulaEdit(kpiFormControl: AbstractControl, kpi: KPI) {
