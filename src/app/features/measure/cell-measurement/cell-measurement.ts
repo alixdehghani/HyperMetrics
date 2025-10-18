@@ -93,6 +93,13 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   readonly neTypeName!: string;
   readonly units!: string[];
   showFullscreenFormulaEditor: boolean = false;
+  showFullscreenTransferCounter: boolean = false;
+  showFullscreenTransferKpi: boolean = false;
+  selectedCounterToTransfer!: Counter | null;
+  selectedKpiToTransfer!: KPI | null;
+  selectedMeasureObjForTransfer!: MeasureObj | null;
+  selectedTargetMeasureObjId!: string | null;
+  showSuccessMessage = false;
   measurementData = {
     measureType: "Cell Measurement",
     measureId: "201101",
@@ -967,8 +974,8 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     this.$destroy.complete();
     this.$destroy = new Subject(); // recreate for future use
     this._initForm();
-    this.addingNewMeasureObj= false;
-    this.newMeasureObjForm= new FormGroup({});
+    this.addingNewMeasureObj = false;
+    this.newMeasureObjForm = new FormGroup({});
     this._updateMeasurementObject();
   }
 
@@ -1680,6 +1687,105 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     this.newFormula = '';
     this.isValid = false;
     this._kpiFormulaEditFc = null;
+  }
+
+  openFormulaFullscreenTransferCounter(measureObj: MeasureObj, counter: Counter) {
+    this.selectedCounterToTransfer = counter;
+    this.selectedMeasureObjForTransfer = measureObj;
+    this.showFullscreenTransferCounter = true;
+  }
+
+  onConfirmCounterTransfer() {
+    if (!confirm("Are you sure you want to transfer this counter?")) return;
+    const index = this.selectedMeasureObjForTransfer?.counterList.findIndex(c => c.id === this.selectedCounterToTransfer?.id);
+    const targetMeasurObj = this.measurementData.measureObjList.find(mo => mo.measureObjId === this.selectedTargetMeasureObjId);   
+    if (typeof(index) === 'number' &&this.selectedMeasureObjForTransfer && this.selectedCounterToTransfer && targetMeasurObj) {
+      this.selectedMeasureObjForTransfer?.counterList.splice(index, 1);
+      const measureObjArray = this.form.get('measureObjList') as FormArray;
+      const measureObjGroup = measureObjArray.at(this.measurementData.measureObjList.indexOf(this.selectedMeasureObjForTransfer));
+      const counterArray = measureObjGroup.get('counterList') as FormArray;
+      counterArray.removeAt(index);
+
+      const newCounter: Counter = {
+        name: this.selectedCounterToTransfer?.name,
+        unit: this.selectedCounterToTransfer.unit,
+        cumulative: this.selectedCounterToTransfer.cumulative,
+        id: '',
+        _show: true,
+      };
+      targetMeasurObj.counterList.push(newCounter);
+      this._normalizeCountersAndKpis(this.measurementData);
+      this.$destroy.next(null); // stop any ongoing subscriptions
+      this.$destroy.complete();
+      this.$destroy = new Subject(); // recreate for future use
+      this._initForm();
+      this.addingNewCounter = false;
+      this.newCounterForm = new FormGroup({});
+      this._updateMeasurementObject();
+      this.closeFormulaFullscreenTransferCounter();
+      this.showSuccessMessage = true;
+    }
+  }
+
+  closeFormulaFullscreenTransferCounter() {
+    this.selectedCounterToTransfer = null;
+    this.selectedMeasureObjForTransfer = null;
+    this.selectedTargetMeasureObjId = null;
+    this.showFullscreenTransferCounter = false;
+  }
+
+  selectTransferTarget(event: string | null) {
+    if (event) {
+      this.selectedTargetMeasureObjId = event;
+    }
+    
+  }
+
+  openFormulaFullscreenTransferKpi(measureObj: MeasureObj, kpi: KPI) {
+    this.selectedKpiToTransfer = kpi;
+    this.selectedMeasureObjForTransfer = measureObj;
+    this.showFullscreenTransferKpi = true;
+  }
+
+  onConfirmKpiTransfer() {
+    if (!confirm("Are you sure you want to transfer this kpi?")) return;
+    const index = this.selectedMeasureObjForTransfer?.kpiList.findIndex(k => k.kpiId === this.selectedKpiToTransfer?.kpiId);
+    const targetMeasurObj = this.measurementData.measureObjList.find(mo => mo.measureObjId === this.selectedTargetMeasureObjId);
+    
+    if (typeof(index) === 'number' &&this.selectedMeasureObjForTransfer && this.selectedKpiToTransfer && targetMeasurObj) {
+      this.selectedMeasureObjForTransfer?.kpiList.splice(index, 1);
+      const measureObjArray = this.form.get('measureObjList') as FormArray;
+      const measureObjGroup = measureObjArray.at(this.measurementData.measureObjList.indexOf(this.selectedMeasureObjForTransfer));
+      const kpiArray = measureObjGroup.get('kpiList') as FormArray;
+      kpiArray.removeAt(index);
+
+      const newKpi: KPI = {
+      name: this.selectedKpiToTransfer.name,
+      formula: this.selectedKpiToTransfer.formula,
+      indicator: this.selectedKpiToTransfer.indicator,
+      unit: this.selectedKpiToTransfer.unit,
+      kpiId: '0',
+      title: this.selectedKpiToTransfer.title,
+      _usedCounters: [],
+      _show: true,
+    };
+      targetMeasurObj.kpiList.push(newKpi);
+      this._normalizeCountersAndKpis(this.measurementData);
+      this.$destroy.next(null); // stop any ongoing subscriptions
+      this.$destroy.complete();
+      this.$destroy = new Subject(); // recreate for future use
+      this._initForm();
+      this._updateMeasurementObject();
+      this.closeFormulaFullscreenTransferKpi();
+      this.showSuccessMessage = true;
+    }
+  }
+
+  closeFormulaFullscreenTransferKpi() {
+    this.selectedKpiToTransfer = null;
+    this.selectedMeasureObjForTransfer = null;
+    this.selectedTargetMeasureObjId = null;
+    this.showFullscreenTransferKpi = false;
   }
 
 

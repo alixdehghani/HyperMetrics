@@ -100,8 +100,9 @@
       <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="filterMeasurementObjects()"
         placeholder="Search Measurement Objects..."
         class="border border-gray-300 rounded-lg px-4 py-2 w-full max-w-md" />
-      <button (click)="startAddingNewMeasureObj()"
-        class="bg-green-600 text-white px-4 py-2 rounded-lg font-medium cursor-pointer">
+      <button (click)="startAddingNewMeasureObj()" [disabled]="addingNewMeasureObj"
+        class="px-4 py-2 rounded-lg font-medium cursor-pointer"
+        [ngClass]="addingNewMeasureObj ? 'bg-green-300 text-gray-400 cursor-not-allowed' : 'bg-green-500 text-white cursor-pointer'">
         + Add new Measurement Object
       </button>
     </div>
@@ -383,10 +384,22 @@
                           ⛔ {{ err }}
                         </div>
                       </div>
-                      <button type="button" (click)="removeCounter(measurementData.measureObjList[i], ci)"
-                        class="mt-2 text-red-600 text-xs cursor-pointer">
-                        Remove
-                      </button>
+                      <div class="flex justify-between mt-2">
+                        <button type="button" (click)="removeCounter(measurementData.measureObjList[i], ci)"
+                          class="text-red-600 text-xs cursor-pointer">
+                          Remove
+                        </button>
+
+                        <button type="button"
+                          (click)="openFormulaFullscreenTransferCounter(measurementData.measureObjList[i], measurementData.measureObjList[i].counterList[ci])"
+                          class=" text-xs cursor-pointer">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                            stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 10H4l5.5-6" /> <!-- Up-left arrow -->
+                            <path d="M4 14h16l-5.5 6" /> <!-- Down-right arrow -->
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -567,11 +580,22 @@
                           ⛔ {{ err }}
                         </div>
                       </div>
+                      <div class="flex justify-between mt-2">
+                        <button type="button" (click)="removeKpi(measurementData.measureObjList[i], ki)"
+                          class="text-red-600 text-xs cursor-pointer">
+                          Remove
+                        </button>
 
-                      <button type="button" (click)="removeKpi(measurementData.measureObjList[i], ki)"
-                        class="mt-2 text-red-600 text-xs cursor-pointer self-start">
-                        Remove
-                      </button>
+                        <button type="button"
+                          (click)="openFormulaFullscreenTransferKpi(measurementData.measureObjList[i], measurementData.measureObjList[i].kpiList[ki])"
+                          class=" text-xs cursor-pointer">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                            stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 10H4l5.5-6" /> <!-- Up-left arrow -->
+                            <path d="M4 14h16l-5.5 6" /> <!-- Down-right arrow -->
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -631,5 +655,101 @@
     </div>
     <button (click)="closeFormulaFullscreenEdit()"
       class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl font-bold">&times;</button>
+  </div>
+</div>
+
+<div *ngIf="showFullscreenTransferCounter"
+  class="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-lg w-full max-w-3xl p-6 relative">
+    <h2 class="text-xl font-semibold mb-4">Transfer Counter {{selectedCounterToTransfer?.name}}</h2>
+    <div class="flex flex-col items-end justify-end gap-x-2">
+      <div class="flex self-start items-center gap-2 mt-5">
+        <label class="text-sm text-gray-700">Target Measure Obj:</label>
+        <select [(ngModel)]="selectedTargetMeasureObjId" (ngModelChange)="selectTransferTarget($event)"
+          [ngModelOptions]="{standalone: true}" class="border rounded px-2 py-1">
+          @for(mo of measurementData.measureObjList; track mo.measureObjId) {
+          @if(mo.measureObjId !== selectedMeasureObjForTransfer?.measureObjId) {
+          <option [ngValue]="mo.measureObjId">
+            {{ mo.name }} ({{ mo.abbreviation }})
+          </option>
+          }
+          }
+        </select>
+      </div>
+      <div class="flex gap-2 mt-5">
+        <button (click)="closeFormulaFullscreenTransferCounter()"
+          class="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">
+          Cancel
+        </button>
+        <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" (click)="onConfirmCounterTransfer()">
+          Confirm
+        </button>
+      </div>
+    </div>
+    <button (click)="closeFormulaFullscreenTransferCounter()"
+      class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl font-bold">&times;</button>
+  </div>
+</div>
+
+<div *ngIf="showFullscreenTransferKpi"
+  class="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-lg w-full max-w-3xl p-6 relative">
+    <h2 class="text-xl font-semibold mb-4">Transfer KPI {{selectedKpiToTransfer?.name}}</h2>
+    <div class="flex flex-col items-end justify-end gap-x-2">
+      <div class="flex self-start items-center gap-2 mt-5">
+        <label class="text-sm text-gray-700">Target Measure Obj:</label>
+        <select [(ngModel)]="selectedTargetMeasureObjId" (ngModelChange)="selectTransferTarget($event)"
+          [ngModelOptions]="{standalone: true}" class="border rounded px-2 py-1">
+          @for(mo of measurementData.measureObjList; track mo.measureObjId) {
+          @if(mo.measureObjId !== selectedMeasureObjForTransfer?.measureObjId) {
+          <option [ngValue]="mo.measureObjId">
+            {{ mo.name }} ({{ mo.abbreviation }})
+          </option>
+          }
+          }
+        </select>
+      </div>
+      <div class="flex gap-2 mt-5">
+        <button (click)="closeFormulaFullscreenTransferKpi()"
+          class="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">
+          Cancel
+        </button>
+        <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" (click)="onConfirmKpiTransfer()">
+          Confirm
+        </button>
+      </div>
+    </div>
+    <button (click)="closeFormulaFullscreenTransferKpi()"
+      class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl font-bold">&times;</button>
+  </div>
+</div>
+
+<div *ngIf="showSuccessMessage"
+  class="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-lg w-full max-w-3xl p-6 relative">
+    <div class="flex flex-col items-center gap-4 text-center" role="alert" aria-live="polite">
+      <div class="flex items-center justify-center w-16 h-16 rounded-full bg-green-100">
+        <svg class="w-8 h-8 text-green-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 6L9 17l-5-5" />
+        </svg>
+      </div>
+
+      <h3 class="text-lg font-semibold text-gray-800">Success</h3>
+      <p class="text-sm text-gray-600 max-w-xl">
+        Operation completed successfully. Your configuration has been saved.
+      </p>
+
+      <div class="flex gap-2">
+        <button (click)="showSuccessMessage = false"
+          class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-300">
+          OK
+        </button>
+        <button (click)="showSuccessMessage = false"
+          class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 focus:outline-none">
+          Close
+        </button>
+      </div>
+    </div>
   </div>
 </div>
