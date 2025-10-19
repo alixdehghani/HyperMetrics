@@ -100,20 +100,11 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   selectedMeasureObjForTransfer!: MeasureObj | null;
   selectedTargetMeasureObjId!: string | null;
   showSuccessMessage = false;
-  measurementData = {
-    measureType: "Cell Measurement",
-    measureId: "201101",
-    measureObjList: <MeasureObj[]>[
-      {
-        measureObjId: "2011018001",
-        name: "Radio Resource Control measurements",
-        counterList: [],
-        kpiList: [],
-        _show: true,
-        abbreviation: ''
-      }
-    ]
-  };
+  measurementData: measurementData = {
+    measureId: '',
+    measureObjList: [],
+    measureType: ''
+  }
 
   form: FormGroup;
   private _route = inject(ActivatedRoute);
@@ -1698,8 +1689,8 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   onConfirmCounterTransfer() {
     if (!confirm("Are you sure you want to transfer this counter?")) return;
     const index = this.selectedMeasureObjForTransfer?.counterList.findIndex(c => c.id === this.selectedCounterToTransfer?.id);
-    const targetMeasurObj = this.measurementData.measureObjList.find(mo => mo.measureObjId === this.selectedTargetMeasureObjId);   
-    if (typeof(index) === 'number' &&this.selectedMeasureObjForTransfer && this.selectedCounterToTransfer && targetMeasurObj) {
+    const targetMeasurObj = this.measurementData.measureObjList.find(mo => mo.measureObjId === this.selectedTargetMeasureObjId);
+    if (typeof (index) === 'number' && this.selectedMeasureObjForTransfer && this.selectedCounterToTransfer && targetMeasurObj) {
       this.selectedMeasureObjForTransfer?.counterList.splice(index, 1);
       const measureObjArray = this.form.get('measureObjList') as FormArray;
       const measureObjGroup = measureObjArray.at(this.measurementData.measureObjList.indexOf(this.selectedMeasureObjForTransfer));
@@ -1738,7 +1729,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     if (event) {
       this.selectedTargetMeasureObjId = event;
     }
-    
+
   }
 
   openFormulaFullscreenTransferKpi(measureObj: MeasureObj, kpi: KPI) {
@@ -1751,8 +1742,8 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     if (!confirm("Are you sure you want to transfer this kpi?")) return;
     const index = this.selectedMeasureObjForTransfer?.kpiList.findIndex(k => k.kpiId === this.selectedKpiToTransfer?.kpiId);
     const targetMeasurObj = this.measurementData.measureObjList.find(mo => mo.measureObjId === this.selectedTargetMeasureObjId);
-    
-    if (typeof(index) === 'number' &&this.selectedMeasureObjForTransfer && this.selectedKpiToTransfer && targetMeasurObj) {
+
+    if (typeof (index) === 'number' && this.selectedMeasureObjForTransfer && this.selectedKpiToTransfer && targetMeasurObj) {
       this.selectedMeasureObjForTransfer?.kpiList.splice(index, 1);
       const measureObjArray = this.form.get('measureObjList') as FormArray;
       const measureObjGroup = measureObjArray.at(this.measurementData.measureObjList.indexOf(this.selectedMeasureObjForTransfer));
@@ -1760,15 +1751,15 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       kpiArray.removeAt(index);
 
       const newKpi: KPI = {
-      name: this.selectedKpiToTransfer.name,
-      formula: this.selectedKpiToTransfer.formula,
-      indicator: this.selectedKpiToTransfer.indicator,
-      unit: this.selectedKpiToTransfer.unit,
-      kpiId: '0',
-      title: this.selectedKpiToTransfer.title,
-      _usedCounters: [],
-      _show: true,
-    };
+        name: this.selectedKpiToTransfer.name,
+        formula: this.selectedKpiToTransfer.formula,
+        indicator: this.selectedKpiToTransfer.indicator,
+        unit: this.selectedKpiToTransfer.unit,
+        kpiId: '0',
+        title: this.selectedKpiToTransfer.title,
+        _usedCounters: [],
+        _show: true,
+      };
       targetMeasurObj.kpiList.push(newKpi);
       this._normalizeCountersAndKpis(this.measurementData);
       this.$destroy.next(null); // stop any ongoing subscriptions
@@ -1807,5 +1798,20 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       }
       this.closeFormulaFullscreenEdit();
     }
+  }
+
+  hasVisibleMeasureObjItems(): boolean {
+    const moList = this.measurementData.measureObjList
+    return moList.some(mo => mo._show);
+  }
+
+  hasVisibleCounterItems(i: number): boolean {
+    const counterList = this.measurementData.measureObjList[i].counterList;
+    return counterList.some(counter => counter._show);
+  }
+
+  hasVisibleKpiItems(i: number): boolean {
+    const kpiList = this.measurementData.measureObjList[i].kpiList;
+    return kpiList.some(kpi => kpi._show);
   }
 }

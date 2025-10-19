@@ -219,8 +219,11 @@
 
       <!-- Measurement Objects -->
       <div formArrayName="measureObjList">
-        <div *ngFor="let measureObjControl of getMeasureObjControls(); let i = index" [formGroupName]="i"
-          class="border border-gray-300 rounded-lg mb-4"
+        @if(!hasVisibleMeasureObjItems()) {
+        <p class="text-sm text-gray-600 mb-2">No measurment object found for this cell.</p>
+        }
+        @for(measureObjControl of getMeasureObjControls(); track measureObjControl;let i = $index){
+        <div [formGroupName]="i" class="border border-gray-300 rounded-lg mb-4"
           [ngStyle]="{ display: measurementData.measureObjList[i]._show ? 'block' : 'none' }">
 
           <div *ngIf="measurementData.measureObjList[i]._show" class="sticky top-0">
@@ -335,7 +338,11 @@
                 </div>
                 <div formArrayName="counterList">
                   <!-- Counters FormArray -->
-                  <div *ngFor="let counterControl of getCounterControls(i); let ci = index" [formGroupName]="ci">
+                  @if(!hasVisibleCounterItems(i)) {
+                  <p class="text-sm text-gray-600 mb-2">No counters found for this measurement object.</p>
+                  }
+                  @for(counterControl of getCounterControls(i); track counterControl; let ci = $index) {
+                  <div [formGroupName]="ci">
                     <div *ngIf="measurementData.measureObjList[i].counterList[ci]._show"
                       class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
                       <div class="mb-2 font-semibold flex gap-2">
@@ -402,6 +409,7 @@
                       </div>
                     </div>
                   </div>
+                  }
                 </div>
               </div>
 
@@ -420,7 +428,7 @@
                 <input type="text" [(ngModel)]="measurementData.measureObjList[i].kpiSearchTerm"
                   (ngModelChange)="filterKpis(measurementData.measureObjList[i])" [ngModelOptions]="{standalone: true}"
                   placeholder="Search KPIs..."
-                  class="border border-blue-300 rounded-lg px-2 py-1 w-full text-sm mb-3" />
+                  class="border border-blue-300 rounded-lg px-2 py-1 w-full text-sm" />
                 <div>
                   <div *ngIf="addingNewKpi" class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-3">
                     <form [formGroup]="newKpiForm">
@@ -473,7 +481,11 @@
                 </div>
                 <div formArrayName="kpiList">
                   <!-- KPIs FormArray -->
-                  <div *ngFor="let kpiControl of getKpiControls(i); let ki = index" [formGroupName]="ki">
+                  @if(!hasVisibleKpiItems(i)) {
+                  <p class="text-sm text-gray-600 mb-2">No kpi found for this measurement object.</p>
+                  }
+                  @for(kpiControl of getKpiControls(i); track kpiControl; let ki = $index) {
+                  <div [formGroupName]="ki">
                     <div *ngIf="measurementData.measureObjList[i].kpiList[ki]._show"
                       class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-3 flex flex-col gap-4">
                       <div class="mb-2 font-semibold flex gap-2">
@@ -598,12 +610,14 @@
                       </div>
                     </div>
                   </div>
+                  }
                 </div>
               </div>
 
             </div>
           </div>
         </div>
+        }
       </div>
     </form>
   </ng-container>
