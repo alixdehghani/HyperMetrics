@@ -15,6 +15,10 @@
                 {{allErrors.length}} errors in the configuration. Please fix them before downloading
                 files.</span>
             }
+            <button (click)="downloadAll()"
+                class="px-2 py-1 rounded-lg font-medium bg-yellow-500 text-white hover:bg-yellow-600 cursor-pointer text-sm">
+                📥 Download All
+            </button>
             <button (click)="downloadHyperConfigFiles()"
                 class="px-2 py-1 rounded-lg font-medium bg-yellow-500 text-white hover:bg-yellow-600 cursor-pointer text-sm">
                 📥 Download Hyper Config File

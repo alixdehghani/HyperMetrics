@@ -2,7 +2,18 @@ import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { MeasureObj, MeasureType } from '../../../core/interfaces/measures.interfaces';
 import { MeasurService } from '../measur.service';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
+export const filenames = {
+    ZipFile: 'exported_files.zip',
+    HyperCounterKpi: 'hyper-counter-kpi.json',
+    Properties: 'counters_kpi_list.properties',
+    eNodeBNoRealtime: 'eNodeB_No_Realtime.json',
+    KpiSetting: 'kpi_setting.json',
+    DefaultKpiFormulas: 'default_kpi_formulas.json',
+    OssConfig: 'oss-config.json'
+}
 @Component({
     imports: [
         CommonModule
@@ -17,6 +28,7 @@ export class MeasureExport {
     showFullscreen = false;
     allErrors: string[] = [];
 
+
     close() {
         this.showFullscreen = false;
     }
@@ -30,124 +42,55 @@ export class MeasureExport {
         }
     }
 
-    downloadHyperConfigFiles() {
-        const blob = new Blob([JSON.stringify(this.measureObject, null, 2)], {
-            type: 'application/json'
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'hyper-counter-kpi.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+    async downloadAll() {
+        const zip = new JSZip();
+        zip.file(filenames['HyperCounterKpi'], this._getHyperCounterKpiBlobFile());
+        zip.file(filenames['Properties'], this._getPropertiesBlobFile());
+        zip.file(filenames['eNodeBNoRealtime'], this._getENodeBNoRealtimeBlobFile());
+        zip.file(filenames['KpiSetting'], this._getKpiSettingBlobFile());
+        zip.file(filenames['DefaultKpiFormulas'], this._getDefaultFormulasBlobFile());
+        zip.file(filenames['OssConfig'], this._getOssE2eTesingBlobFile());
+        const blob = await zip.generateAsync({ type: 'blob' });
+        saveAs(blob, filenames['ZipFile']);
     }
 
-    downloadPropertiesFile(filename = 'counters_kpi_list.properties') {
-        const propertiesContent = this._exportToProperties();
+    downloadHyperConfigFiles() {
+        const blob = this._getHyperCounterKpiBlobFile();
+        saveAs(blob, filenames['HyperCounterKpi']);
+    }
 
-        // Create blob and download
-        const blob = new Blob([propertiesContent], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+    downloadPropertiesFile() {
+        const blob = this._getPropertiesBlobFile();
+        saveAs(blob, filenames['Properties']);
     }
 
     downloadENodeB() {
-        const blob = new Blob([JSON.stringify(this.generateENodeB(), null, 2)], {
-            type: 'application/json'
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'eNodeB_No_Realtime.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const blob = this._getENodeBNoRealtimeBlobFile();
+        saveAs(blob, filenames['eNodeBNoRealtime']);
     }
 
     downloadKpiSettingFile() {
-        const blob = new Blob([JSON.stringify(this._convertHyperCounterKpiToKpiSetting(), null, 2)], {
-            type: 'application/json'
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'kpi_setting.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const blob = this._getKpiSettingBlobFile();
+        saveAs(blob, filenames['KpiSetting']);
     }
 
     downloadDefaultFormulaFile() {
-        const blob = new Blob([JSON.stringify(this._convertHyperCounterKpiToDefaultFormulas(), null, 2)], {
-            type: 'application/json'
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'default_kpi_formulas.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const blob = this._getDefaultFormulasBlobFile();
+        saveAs(blob, filenames['DefaultKpiFormulas']);
     }
 
     downloadOssE2eTestingFile() {
-        const obj: any = {};
-        const measureObjList = this.measureObject.measureObjTypeList.flatMap(mType => mType.measureObjList);
-        measureObjList.forEach((measureObj: MeasureObj) => {
-            obj[measureObj.name] = {
-                counters: measureObj.counterList.map(c => ({ name: c.name, isActive: false })),
-                kpis: measureObj.kpiList.map(k => ({ name: k.name, isActive: false })),
-            }
-        });
-        obj["timeMode"] = [
-            {
-                "name": "Continuous",
-                "isActive": false,
-                "options": null
-            },
-            {
-                "name": "Section Time",
-                "isActive": true,
-                "options": {
-                    "startTime": "12:34",
-                    "endTime": "13:30"
-                }
-            }
-        ];
-        obj["dateRange"] = [
-            {
-                "name": "Custom",
-                "isActivce": true,
-                "startDate": "2025-10-01",
-                "endDate": "2025-10-13"
-            }
-        ];
-        const blob = new Blob([JSON.stringify(obj, null, 2)], {
-            type: 'application/json'
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'oss-config.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const blob = this._getOssE2eTesingBlobFile();
+        saveAs(blob, filenames['OssConfig']);
     }
 
-    private _exportToProperties(): string {
+    private _getHyperCounterKpiBlobFile(): Blob {
+        return new Blob([JSON.stringify(this.measureObject, null, 2)], {
+            type: 'application/json'
+        });
+    }
+
+    private _getPropertiesBlobFile(): Blob {
 
         let propertiesContent = '';
         this.measureObject.measureObjTypeList.forEach(measurObj => {
@@ -179,10 +122,10 @@ export class MeasureExport {
             });
 
         });
-        return propertiesContent;
+        return new Blob([propertiesContent], { type: 'text/plain' });
     }
 
-    private generateENodeB() {
+    private _getENodeBNoRealtimeBlobFile(): Blob {
         const eNodeBStructure = {
             "neVersion": this.measureObject.neVersion,
             "neTypeId": this.measureObject.neTypeId,
@@ -205,9 +148,11 @@ export class MeasureExport {
                 }))
             }))
         };
-        return eNodeBStructure;
+        return new Blob([JSON.stringify(eNodeBStructure, null, 2)], {
+            type: 'application/json'
+        });
     }
-    private _convertHyperCounterKpiToKpiSetting() {
+    private _getKpiSettingBlobFile(): Blob {
         // Initialize the result object
         const kpiSetting = {} as any;
 
@@ -231,10 +176,12 @@ export class MeasureExport {
             }
         });
 
-        return kpiSetting;
+        return new Blob([JSON.stringify(kpiSetting, null, 2)], {
+            type: 'application/json'
+        });
     }
 
-    private _convertHyperCounterKpiToDefaultFormulas() {
+    private _getDefaultFormulasBlobFile(): Blob {
         const defaultFormulas = [] as any[];
         let idCounter = 1;
         // Helper function to parse formula string and convert to array format
@@ -272,6 +219,45 @@ export class MeasureExport {
             }
         });
 
-        return defaultFormulas;
+        return new Blob([JSON.stringify(defaultFormulas, null, 2)], {
+            type: 'application/json'
+        });
+    }
+
+    private _getOssE2eTesingBlobFile(): Blob {
+        const obj: any = {};
+        const measureObjList = this.measureObject.measureObjTypeList.flatMap(mType => mType.measureObjList);
+        measureObjList.forEach((measureObj: MeasureObj) => {
+            obj[measureObj.name] = {
+                counters: measureObj.counterList.map(c => ({ name: c.name, isActive: false })),
+                kpis: measureObj.kpiList.map(k => ({ name: k.name, isActive: false })),
+            }
+        });
+        obj["timeMode"] = [
+            {
+                "name": "Continuous",
+                "isActive": false,
+                "options": null
+            },
+            {
+                "name": "Section Time",
+                "isActive": true,
+                "options": {
+                    "startTime": "12:34",
+                    "endTime": "13:30"
+                }
+            }
+        ];
+        obj["dateRange"] = [
+            {
+                "name": "Custom",
+                "isActivce": true,
+                "startDate": "2025-10-01",
+                "endDate": "2025-10-13"
+            }
+        ];
+        return new Blob([JSON.stringify(obj, null, 2)], {
+            type: 'application/json'
+        });
     }
 }
