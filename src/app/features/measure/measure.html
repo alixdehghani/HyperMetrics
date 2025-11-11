@@ -1,4 +1,4 @@
-<div class="flex  flex-col gap-5 p-4 bg-gradient-to-r from-blue-50 via-purple-50 to-yellow-50 rounded-lg p-6 shadow-md mb-4 border border-gray-200">
+<!-- <div class="flex  flex-col gap-5 p-4 bg-gradient-to-r from-blue-50 via-purple-50 to-yellow-50 rounded-lg p-6 shadow-md mb-4 border border-gray-200">
   <h1 class="text-3xl font-bold underline">
     Cell Measurement
   </h1>
@@ -13,4 +13,198 @@
       Go to Cell Measurement V2
     </a>
   </div>
+</div> -->
+<div class="max-w-6xl mx-auto p-6 bg-white">
+  <div class="mb-4 flex items-center justify-between space-x-2">
+    <label class="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium cursor-pointer">
+      Upload Hyper Counter KPI File
+      <input type="file" accept="application/json" (change)="onJsonFileUpload($event)" class="hidden" />
+    </label>
+    <measure-export />
+  </div>
+  <div class="flex space-x-2 mb-4">
+    <button (click)="setViewMode('ui')"
+      [ngClass]="viewMode === 'ui' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'"
+      class="px-2 py-1 rounded-lg font-medium cursor-pointer text-sm">UI View</button>
+    <button (click)="setViewMode('json')"
+      [ngClass]="viewMode === 'json' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'"
+      class="px-2 py-1 rounded-lg font-medium cursor-pointer text-sm">JSON View</button>
+  </div>
+  @if(viewMode === 'ui') {
+  <div class="mb-6 flex items-center justify-between">
+    <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="filterMeasurements()"
+      placeholder="Search Measurement Types..." class="border border-gray-300 rounded-lg px-4 py-2 w-full max-w-md" />
+    <button (click)="startAddingNewMeasure()" [disabled]="addingNewMeasure"
+      class="px-4 py-2 rounded-lg font-medium cursor-pointer"
+      [ngClass]="addingNewMeasure ? 'bg-green-300 text-gray-400 cursor-not-allowed' : 'bg-green-500 text-white cursor-pointer'">
+      + Add new Measurement Type
+    </button>
+  </div>
+  <div *ngIf="addingNewMeasure"
+    class="flex items-center space-x-3 bg-gray-50 p-4 cursor-pointer hover:bg-gray-100 md:flex-row flex-col items-start border border-gray-300 rounded-lg mb-4">
+
+    <form [formGroup]="newMeasureForm">
+      <h3 class="font-semibold text-lg flex p-2">
+        Add new measurement
+      </h3>
+      <div class="mb-2 font-semibold w-full flex gap-2 flex-col">
+        <span class="text-gray-500">Measurment Type Name:</span>
+        <input formControlName="measureType" class="border rounded px-2 py-1 w-full font-medium mb-2"
+          placeholder="Measurment Type Name" />
+        <span class="text-gray-500">Measurment Type ID: (optional)</span>
+        <input formControlName="measureObjTypeId" class="border rounded px-2 py-1 w-full font-medium mb-2"
+          placeholder="Measurment Type ID" />
+      </div>
+      <div class="flex gap-2">
+        <button (click)="confirmAddNewMeasure()" class="text-green-600 text-sm cursor-pointer">Save</button>
+        <button (click)="cancelAddNewMeasure()" class="text-red-600 text-sm cursor-pointer">Cancel</button>
+      </div>
+    </form>
+  </div>
+  @for(measure of filteredMeasurementsData; track $index; let i = $index) {
+  <div
+    class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4 flex flex-col md:flex-row md:items-center md:justify-between">
+    <div class="flex-1">
+      <div class="flex flex-col justify-between md:flex-row">
+        <h3 class="text-lg font-semibold text-gray-800 cursor-pointer" (click)="toggleSection('measureObj-' + i)">
+          <span *ngIf="expandedSections['measureObj-' + i]">▼</span>
+          <span *ngIf="!expandedSections['measureObj-' + i]">▶</span>
+          {{ measure.measureType }}
+          <span class="text-3xl px-2" (click)="$event.stopPropagation(); onMeasureTitleEditClick(measure)">✎</span>
+          <p class="text-sm text-gray-500 mt-1" *ngIf="measure.measureObjTypeId">{{ measure.measureObjTypeId }}</p>
+        </h3>
+        <div class="flex space-x-2 md:gap-4 mb-3 items-center">
+          <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">{{
+            measureTypeListOveralViewObject[measure.measureObjTypeId].coutersLength }}
+            Counters</span>
+          <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">{{
+            measureTypeListOveralViewObject[measure.measureObjTypeId].kpisLength }}
+            KPIs</span>
+          <span *ngIf="measureTypeListOveralViewObject[measure.measureObjTypeId].errorsLength > 0"
+            class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">{{measureTypeListOveralViewObject[measure.measureObjTypeId].errorsLength}}
+            Error in Measurement Type
+          </span>
+          <span  class="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs">{{measureTypeListOveralViewObject[measure.measureObjTypeId].measureObjectsLength}}
+            Objects in Measurment type
+          </span>
+        </div>
+        <div class="mt-3 md:mt-0 md:ml-4 flex items-center gap-2">
+          <a [routerLink]="[measure.measureObjTypeId, 'measurement-object-config']"
+            class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded"
+            aria-label="Edit measure">
+            Edit
+          </a>
+          <button (click)="deleteMeasure(measure)"
+            class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded"
+            aria-label="Delete measure">
+            Delete
+          </button>
+        </div>
+      </div>
+      <div *ngIf="expandedSections['measureObj-' + i]" class="mt-3 flex flex-col text-sm">
+        @for(measureObj of measure.measureObjList; track $index) {
+        <!-- Overview Section -->
+        <div
+          class="flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 via-purple-50 to-yellow-50 rounded-lg p-6 shadow-md mb-4 border border-gray-200">
+          <div class="flex flex-col items-center gap-4 mb-4 xl:flex-row">
+            <span class="inline-flex items-center px-3 py-1 bg-gray-200 text-gray-800 rounded-full  font-semibold">
+              <!-- measurement-objects-cubes.svg -->
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48" role="img"
+                aria-labelledby="moCubesTitle">
+                <title id="moCubesTitle">Measurement Objects</title>
+                <!-- cube left -->
+                <rect x="8" y="24" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                <!-- cube right -->
+                <rect x="26" y="24" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                <!-- cube bottom -->
+                <rect x="17" y="42" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                <!-- measurement arrow -->
+                <path d="M50 14 v36" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+                <path d="M46 14 l4-6 4 6 M46 50 l4 6 4-6" fill="none" stroke="currentColor" stroke-width="2.5"
+                  stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+
+              {{ measureObj.name}} ({{measureObj.abbreviation}})
+            </span>
+            <span class="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full  font-semibold">
+              <!-- counter.svg -->
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48" role="img"
+                aria-labelledby="counterTitle">
+                <title id="counterTitle">Counter</title>
+                <!-- outer case -->
+                <rect x="4" y="8" width="56" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="2" />
+                <!-- display -->
+                <rect x="8" y="12" width="48" height="20" rx="2" fill="currentColor" opacity="0.08" />
+                <!-- digits (stylized) -->
+                <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 28h6v-8h-6z" /> <!-- 1-ish -->
+                  <path d="M26 28h8v-8h-8z M26 22h8" /> <!-- 2-ish (box + split) -->
+                  <path d="M44 28h6v-8h-6z" /> <!-- 3-ish -->
+                </g>
+                <!-- buttons / knobs -->
+                <circle cx="14" cy="44" r="3" fill="currentColor" />
+                <circle cx="26" cy="44" r="3" fill="currentColor" />
+                <circle cx="38" cy="44" r="3" fill="currentColor" />
+                <rect x="48" y="40" width="6" height="6" rx="1" fill="currentColor" />
+              </svg>
+
+              {{ getCounterLength(measureObj) }} Counters
+            </span>
+            <span class="inline-flex items-center px-3 py-1 bg-purple-100 text-purple-800 rounded-full  font-semibold">
+              <!-- kpi.svg -->
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48" role="img"
+                aria-labelledby="kpiTitle">
+                <title id="kpiTitle">KPI Chart</title>
+                <!-- axes -->
+                <path d="M8 52 H56" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <path d="M12 12 V52" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <!-- bars -->
+                <rect x="16" y="34" width="6" height="18" rx="1" fill="currentColor" opacity="0.18" />
+                <rect x="26" y="26" width="6" height="26" rx="1" fill="currentColor" opacity="0.28" />
+                <rect x="36" y="18" width="6" height="34" rx="1" fill="currentColor" opacity="0.36" />
+                <rect x="46" y="10" width="6" height="42" rx="1" fill="currentColor" opacity="0.44" />
+                <!-- trend line with arrow -->
+                <polyline points="14,38 22,30 30,22 38,18 50,10" fill="none" stroke="currentColor" stroke-width="2.5"
+                  stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M48 8 L54 10 L50 14" fill="none" stroke="currentColor" stroke-width="2.5"
+                  stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+
+              {{ getKpiLength(measureObj) }} KPIs
+            </span>
+
+          </div>
+        </div>
+        }
+      </div>
+    </div>
+
+  </div>
+  }
+  } @else {
+  <div class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto">
+    <div class="flex justify-between items-center mb-2">
+      <span class="font-semibold text-white">JSON Output</span>
+      <button (click)="copyJson()"
+        class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 cursor-pointer">
+        Copy
+      </button>
+    </div>
+    <pre>{{ measurementsData | json }}</pre>
+  </div>
+  }
+
+  <!-- <div *ngIf="showRestoreBanner" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded">
+    <p class="font-bold">Restore data?</p>
+    <p>You have a saved JSON file. Do you want to load it?</p>
+    <div class="mt-2 flex gap-2">
+      <button (click)="restoreFromLocalStorage()"
+        class="bg-yellow-500 text-white px-4 py-1 rounded hover:bg-yellow-600">
+        Load
+      </button>
+      <button (click)="clearLocalStorage()" class="bg-gray-300 px-4 py-1 rounded hover:bg-gray-400">
+        Clear
+      </button>
+    </div>
+  </div> -->
 </div>

@@ -12,21 +12,25 @@ export const measureRoutes = [
                 component: Measure
             },
             {
-                path: ':typeId/cell-measurement-v1',
+                path: ':typeId/measurement-object-config',
                 component: CellMeasurementComponent,
-                data: {
-                    "neVersion": "faraabeen_default",
-                    "neTypeName": "eNodeB"
-                }
             },
-            {
-                path: ':typeId/cell-measurement-v2',
-                component: CellMeasurementComponentV2,
-                data: {
-                    "neVersion": "faraabeen_default",
-                    "neTypeName": "eNodeB"
-                }
-            }
+            // {
+            //     path: ':typeId/cell-measurement-v1',
+            //     component: CellMeasurementComponent,
+            //     data: {
+            //         "neVersion": "faraabeen_default",
+            //         "neTypeName": "eNodeB"
+            //     }
+            // },
+            // {
+            //     path: ':typeId/cell-measurement-v2',
+            //     component: CellMeasurementComponentV2,
+            //     data: {
+            //         "neVersion": "faraabeen_default",
+            //         "neTypeName": "eNodeB"
+            //     }
+            // }
         ]
     }
 ];

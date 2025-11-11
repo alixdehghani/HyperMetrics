@@ -124,10 +124,18 @@ export class CellMeasurementComponentV2 implements OnInit, OnDestroy {
 
 
   ngOnInit(): void {
-    const savedJson = localStorage.getItem('hyper_config');
-    if (savedJson) {
-      this.showRestoreBanner = true;
-    }
+    // const savedJson = localStorage.getItem('hyper_config');
+    // if (savedJson) {
+    //   this.showRestoreBanner = true;
+    // }
+    const file = localStorage.getItem(`hyper_measure_${this.neTypeId}`);
+    const data = JSON.parse(file || '');
+    this._normalizeCountersAndKpis(data);
+    this.measurementData = data;
+    this._updateMeasurementObject();
+    // this._startUpdateLocalstorageTimerInterval();
+    this._initForm();
+    this.saveToLocalStorage();
   }
 
   ngOnDestroy(): void {
@@ -317,27 +325,28 @@ export class CellMeasurementComponentV2 implements OnInit, OnDestroy {
   // -------------------------------
   // JSON File Upload Handling
   // -------------------------------
-  onJsonFileUpload(event: any) {
-    const file = event.target.files[0];
-    if (!file) return;
+  // onJsonFileUpload(event: any) {
+  //   const file = event.target.files[0];
+  //   if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e: any) => {
-      try {
-        const data = JSON.parse(e.target.result);
-        this._normalizeCountersAndKpis(data);
-        this.measurementData = data;
-        this._updateMeasurementObject();
-        // this._startUpdateLocalstorageTimerInterval();
-        this._initForm();
-        this.saveToLocalStorage();
-      } catch (err) {
-        console.error("❌ Invalid JSON file", err);
-        alert("The uploaded file is not a valid JSON.");
-      }
-    };
-    reader.readAsText(file);
-  }
+  //   const reader = new FileReader();
+  //   reader.onload = (e: any) => {
+  //     try {
+  //       const data = JSON.parse(e.target.result);
+  //       this._normalizeCountersAndKpis(data);
+  //       this.measurementData = data;
+  //       this._updateMeasurementObject();
+  //       // this._startUpdateLocalstorageTimerInterval();
+  //       this._initForm();
+  //       this.saveToLocalStorage();
+  //     } catch (err) {
+  //       console.error("❌ Invalid JSON file", err);
+  //       alert("The uploaded file is not a valid JSON.");
+  //     }
+  //   };
+  //   reader.readAsText(file);
+  // }
+
 
   // private _startUpdateLocalstorageTimerInterval(): void {
   //   interval(1500).pipe(takeUntil(this.$destroy)).subscribe({
@@ -1509,7 +1518,7 @@ export class CellMeasurementComponentV2 implements OnInit, OnDestroy {
   }
 
   saveToLocalStorage(): void {
-    localStorage.setItem('hyper_config', JSON.stringify(this.form.getRawValue()));
+    localStorage.setItem(`hyper_measure_${this.neTypeId}`, JSON.stringify(this.form.getRawValue()));
     this.showRestoreBanner = false;
   }
 

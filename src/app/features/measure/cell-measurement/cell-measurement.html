@@ -1,504 +1,428 @@
 <div class="max-w-6xl mx-auto p-6 bg-white">
-  <div class="mb-4 flex items-center space-x-2">
-    <label class="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium cursor-pointer">
-      Upload Hyper Counter KPI File
-      <input type="file" accept="application/json" (change)="onJsonFileUpload($event)" class="hidden" />
-    </label>
+  <div class="mb-4 flex items-center justify-between">
+    <button type="button" (click)="goBack()" aria-label="Go back"
+      class="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-400 text-gray-800 shadow-sm cursor-pointer">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+        stroke-width="2" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+      </svg>
+      Back
+    </button>
+    <measure-export />
   </div>
+
   <!-- Header -->
   <div class="mb-6 flex items-center justify-between md:flex-row flex-col gap-4">
-    <div>
-      <h1 class="text-3xl font-bold text-gray-900 mb-2">Measurement Configuration</h1>
-      <div class="flex items-center space-x-4 text-gray-600">
-        <form [formGroup]="form" class="flex justify-center gap-2">
-          <div class="flex flex-col items-start">
-            <div class="flex justify-center gap-2">
-              <span class="text-gray-500">Type:</span>
-              <input formControlName="measureType" class="border rounded px-2 py-1 w-full font-medium mb-2"
-                placeholder="Type" />
-            </div>
-            <div class="flex justify-center gap-2">
-              <button *ngIf="editingMeasureType" (click)="confirmMeasureTypeChange()"
-                class="text-green-600 text-sm cursor-pointer">Save</button>
-              <button *ngIf="editingMeasureType" (click)="cancelMeasureTypeEdit()"
-                class="text-red-600 text-sm cursor-pointer">Cancel</button>
-            </div>
-          </div>
-          <div class="flex flex-col items-start">
-            <div class="flex justify-center gap-2">
-              <span class="text-gray-500">Id:</span>
-              <input formControlName="measureId" class="border rounded px-2 py-1 w-full font-medium mb-2"
-                placeholder="Id" />
-            </div>
-            <div class="flex justify-center gap-2">
-              <button *ngIf="editingMeasureId" (click)="confirmMeasureIdChange()"
-                class="text-green-600 text-sm cursor-pointer">Save</button>
-              <button *ngIf="editingMeasureId" (click)="cancelMeasureIdEdit()"
-                class="text-red-600 text-sm cursor-pointer">Cancel</button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
-    <div class="flex flex-col space-y-2 mt-2">
-      @if(getAllErrors().length > 0) {
-      <span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">⛔ There are
-        {{getAllErrors().length}} errors in the configuration. Please fix them before downloading files.</span>
-      }
-      <button (click)="downloadHyperConfigFiles()"
-        class="px-2 py-1 rounded-lg font-medium bg-yellow-500 text-white hover:bg-yellow-600 cursor-pointer text-sm">
-        📥 Download Hyper Config File
-      </button>
-      <button (click)="downloadPropertiesFile()"
-        class="px-2 py-1 rounded-lg font-medium bg-yellow-500 text-white hover:bg-yellow-600 cursor-pointer text-sm">
-        📥 Download Properties File
-      </button>
-      <button (click)="downloadENodeB()"
-        class="px-2 py-1 rounded-lg font-medium bg-yellow-500 text-white hover:bg-yellow-600 cursor-pointer text-sm">
-        📥 Download eNodB No Realtime File
-      </button>
-      <button (click)="downloadKpiSettingFile()"
-        class="px-2 py-1 rounded-lg font-medium bg-yellow-500 text-white hover:bg-yellow-600 cursor-pointer text-sm">
-        📥 Download KPI Setting File
-      </button>
-      <button (click)="downloadDefaultFormulaFile()"
-        class="px-2 py-1 rounded-lg font-medium bg-yellow-500 text-white hover:bg-yellow-600 cursor-pointer text-sm">
-        📥 Download Default Formula File
-      </button>
-      <button (click)="downloadOssE2eTestingFile()"
-        class="px-2 py-1 rounded-lg font-medium bg-yellow-500 text-white hover:bg-yellow-600 cursor-pointer text-sm">
-        📥 Download OSS e2e testing file
-      </button>
-
-    </div>
-  </div>
-
-  <div class="flex space-x-2 mb-4">
-    <button (click)="setViewMode('ui')"
-      [ngClass]="viewMode === 'ui' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'"
-      class="px-2 py-1 rounded-lg font-medium cursor-pointer text-sm">UI View</button>
-    <button (click)="setViewMode('json')"
-      [ngClass]="viewMode === 'json' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'"
-      class="px-2 py-1 rounded-lg font-medium cursor-pointer text-sm">JSON View</button>
+    <h1 class="text-3xl font-bold text-gray-900">{{measurementData.measureType}} ({{measurementData.measureObjTypeId}})
+    </h1>
   </div>
 
   <!-- Content -->
-  <ng-container *ngIf="viewMode === 'ui'; else jsonView">
-    <div class="mb-6 flex items-center justify-between">
-      <h2 class="text-xl font-semibold text-gray-800 mb-4">
-        Measurement Objects ({{ measurementData.measureObjList.length }})
-      </h2>
-      <!-- <div *ngIf="form.dirty" class="text-sm text-red-600">
-        You have unsaved changes.
-        <button (click)="saveToLocalStorage()"
-          class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium cursor-pointer">
-          Save Progress
-        </button>
-      </div> -->
+
+  <div class="mb-6 flex items-center justify-between">
+    <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="filterMeasurementObjects()"
+      placeholder="Search Measurement Objects..." class="border border-gray-300 rounded-lg px-4 py-2 w-full max-w-md" />
+    <button (click)="startAddingNewMeasureObj()" [disabled]="addingNewMeasureObj"
+      class="px-4 py-2 rounded-lg font-medium cursor-pointer"
+      [ngClass]="addingNewMeasureObj ? 'bg-green-300 text-gray-400 cursor-not-allowed' : 'bg-green-500 text-white cursor-pointer'">
+      + Add new Measurement Object
+    </button>
+  </div>
+
+  @if(!routeService.isLoadingRoute()) {
+  <!-- Overview Section -->
+  <div
+    class="flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 via-purple-50 to-yellow-50 rounded-lg p-6 shadow-md mb-4 border border-gray-200">
+    <div class="flex flex-col items-center gap-4 mb-4 xl:flex-row">
+      <span class="inline-flex items-center px-3 py-1 bg-gray-200 text-gray-800 rounded-full  font-semibold">
+        <!-- measurement-objects-cubes.svg -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48" role="img"
+          aria-labelledby="moCubesTitle">
+          <title id="moCubesTitle">Measurement Objects</title>
+          <!-- cube left -->
+          <rect x="8" y="24" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+          <!-- cube right -->
+          <rect x="26" y="24" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+          <!-- cube bottom -->
+          <rect x="17" y="42" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+          <!-- measurement arrow -->
+          <path d="M50 14 v36" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+          <path d="M46 14 l4-6 4 6 M46 50 l4 6 4-6" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+
+        {{ measurementData.measureObjList.length }} Measurement Objects
+      </span>
+      <span class="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full  font-semibold">
+        <!-- counter.svg -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48" role="img"
+          aria-labelledby="counterTitle">
+          <title id="counterTitle">Counter</title>
+          <!-- outer case -->
+          <rect x="4" y="8" width="56" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="2" />
+          <!-- display -->
+          <rect x="8" y="12" width="48" height="20" rx="2" fill="currentColor" opacity="0.08" />
+          <!-- digits (stylized) -->
+          <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 28h6v-8h-6z" /> <!-- 1-ish -->
+            <path d="M26 28h8v-8h-8z M26 22h8" /> <!-- 2-ish (box + split) -->
+            <path d="M44 28h6v-8h-6z" /> <!-- 3-ish -->
+          </g>
+          <!-- buttons / knobs -->
+          <circle cx="14" cy="44" r="3" fill="currentColor" />
+          <circle cx="26" cy="44" r="3" fill="currentColor" />
+          <circle cx="38" cy="44" r="3" fill="currentColor" />
+          <rect x="48" y="40" width="6" height="6" rx="1" fill="currentColor" />
+        </svg>
+
+        {{ getCounterLength() }} Counters
+      </span>
+      <span class="inline-flex items-center px-3 py-1 bg-purple-100 text-purple-800 rounded-full  font-semibold">
+        <!-- kpi.svg -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48" role="img"
+          aria-labelledby="kpiTitle">
+          <title id="kpiTitle">KPI Chart</title>
+          <!-- axes -->
+          <path d="M8 52 H56" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          <path d="M12 12 V52" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          <!-- bars -->
+          <rect x="16" y="34" width="6" height="18" rx="1" fill="currentColor" opacity="0.18" />
+          <rect x="26" y="26" width="6" height="26" rx="1" fill="currentColor" opacity="0.28" />
+          <rect x="36" y="18" width="6" height="34" rx="1" fill="currentColor" opacity="0.36" />
+          <rect x="46" y="10" width="6" height="42" rx="1" fill="currentColor" opacity="0.44" />
+          <!-- trend line with arrow -->
+          <polyline points="14,38 22,30 30,22 38,18 50,10" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M48 8 L54 10 L50 14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
+
+        {{ getKpiLength() }} KPIs
+      </span>
+      <span class="inline-flex items-center px-3 py-1 bg-red-100 text-red-800 rounded-full  font-semibold">
+        <!-- error-triangle.svg -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48" role="img"
+          aria-labelledby="errTriTitle">
+          <title id="errTriTitle">Error</title>
+          <!-- triangle -->
+          <path d="M32 8 L6 56 H58 Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" />
+          <!-- exclamation stem -->
+          <rect x="30.5" y="22" width="3" height="16" rx="1" fill="currentColor" />
+          <!-- exclamation dot -->
+          <circle cx="32" cy="44" r="2.5" fill="currentColor" />
+        </svg>
+
+        {{ getAllErrors().length }} Errors
+      </span>
     </div>
-    <div class="mb-6 flex items-center justify-between">
-      <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="filterMeasurementObjects()"
-        placeholder="Search Measurement Objects..."
-        class="border border-gray-300 rounded-lg px-4 py-2 w-full max-w-md" />
-      <button (click)="startAddingNewMeasureObj()" [disabled]="addingNewMeasureObj"
-        class="px-4 py-2 rounded-lg font-medium cursor-pointer"
-        [ngClass]="addingNewMeasureObj ? 'bg-green-300 text-gray-400 cursor-not-allowed' : 'bg-green-500 text-white cursor-pointer'">
-        + Add new Measurement Object
-      </button>
-    </div>
-    <!-- Overview Section -->
-    <div
-      class="flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 via-purple-50 to-yellow-50 rounded-lg p-6 shadow-md mb-4 border border-gray-200">
-      <div class="flex flex-col items-center gap-4 mb-4 xl:flex-row">
-        <span class="inline-flex items-center px-3 py-1 bg-gray-200 text-gray-800 rounded-full  font-semibold">
-          <!-- measurement-objects-cubes.svg -->
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48" role="img"
-            aria-labelledby="moCubesTitle">
-            <title id="moCubesTitle">Measurement Objects</title>
-            <!-- cube left -->
-            <rect x="8" y="24" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
-            <!-- cube right -->
-            <rect x="26" y="24" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
-            <!-- cube bottom -->
-            <rect x="17" y="42" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
-            <!-- measurement arrow -->
-            <path d="M50 14 v36" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
-            <path d="M46 14 l4-6 4 6 M46 50 l4 6 4-6" fill="none" stroke="currentColor" stroke-width="2.5"
-              stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
+  </div>
+  }
+  <div *ngIf="addingNewMeasureObj"
+    class="flex items-center space-x-3 bg-gray-50 p-4 cursor-pointer hover:bg-gray-100 md:flex-row flex-col items-start border border-gray-300 rounded-lg mb-4">
 
-          {{ measurementData.measureObjList.length }} Measurement Objects
-        </span>
-        <span class="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full  font-semibold">
-          <!-- counter.svg -->
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48" role="img"
-            aria-labelledby="counterTitle">
-            <title id="counterTitle">Counter</title>
-            <!-- outer case -->
-            <rect x="4" y="8" width="56" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="2" />
-            <!-- display -->
-            <rect x="8" y="12" width="48" height="20" rx="2" fill="currentColor" opacity="0.08" />
-            <!-- digits (stylized) -->
-            <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 28h6v-8h-6z" /> <!-- 1-ish -->
-              <path d="M26 28h8v-8h-8z M26 22h8" /> <!-- 2-ish (box + split) -->
-              <path d="M44 28h6v-8h-6z" /> <!-- 3-ish -->
-            </g>
-            <!-- buttons / knobs -->
-            <circle cx="14" cy="44" r="3" fill="currentColor" />
-            <circle cx="26" cy="44" r="3" fill="currentColor" />
-            <circle cx="38" cy="44" r="3" fill="currentColor" />
-            <rect x="48" y="40" width="6" height="6" rx="1" fill="currentColor" />
-          </svg>
-
-          {{ getCounterLength() }} Counters
-        </span>
-        <span class="inline-flex items-center px-3 py-1 bg-purple-100 text-purple-800 rounded-full  font-semibold">
-          <!-- kpi.svg -->
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48" role="img"
-            aria-labelledby="kpiTitle">
-            <title id="kpiTitle">KPI Chart</title>
-            <!-- axes -->
-            <path d="M8 52 H56" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-            <path d="M12 12 V52" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-            <!-- bars -->
-            <rect x="16" y="34" width="6" height="18" rx="1" fill="currentColor" opacity="0.18" />
-            <rect x="26" y="26" width="6" height="26" rx="1" fill="currentColor" opacity="0.28" />
-            <rect x="36" y="18" width="6" height="34" rx="1" fill="currentColor" opacity="0.36" />
-            <rect x="46" y="10" width="6" height="42" rx="1" fill="currentColor" opacity="0.44" />
-            <!-- trend line with arrow -->
-            <polyline points="14,38 22,30 30,22 38,18 50,10" fill="none" stroke="currentColor" stroke-width="2.5"
-              stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M48 8 L54 10 L50 14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-              stroke-linejoin="round" />
-          </svg>
-
-          {{ getKpiLength() }} KPIs
-        </span>
-        <span class="inline-flex items-center px-3 py-1 bg-red-100 text-red-800 rounded-full  font-semibold">
-          <!-- error-triangle.svg -->
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48" role="img"
-            aria-labelledby="errTriTitle">
-            <title id="errTriTitle">Error</title>
-            <!-- triangle -->
-            <path d="M32 8 L6 56 H58 Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" />
-            <!-- exclamation stem -->
-            <rect x="30.5" y="22" width="3" height="16" rx="1" fill="currentColor" />
-            <!-- exclamation dot -->
-            <circle cx="32" cy="44" r="2.5" fill="currentColor" />
-          </svg>
-
-          {{ getAllErrors().length }} Errors
-        </span>
+    <form [formGroup]="newMeasureObjForm">
+      <h3 class="font-semibold text-lg flex p-2">
+        Add new measure object
+      </h3>
+      <div class="mb-2 font-semibold flex gap-4 items-center justify-center">
+        <span class="text-gray-500">Name:</span>
+        <input formControlName="name" class="border rounded px-2 py-1 w-full font-medium mb-2" placeholder="name" />
+        <span class="text-gray-500">Abbreviation:</span>
+        <input formControlName="abbreviation" class="border rounded px-2 py-1 w-full font-medium mb-2"
+          placeholder="abbreviation" />
       </div>
-    </div>
+      <div class="flex gap-2">
+        <button (click)="confirmAddNewMeasureObj()" class="text-green-600 text-sm cursor-pointer">Save</button>
+        <button (click)="cancelAddNewMeasureObj()" class="text-red-600 text-sm cursor-pointer">Cancel</button>
+      </div>
+    </form>
+  </div>
+  <!-- Replace the existing form tag and its content -->
+  @if(!routeService.isLoadingRoute()) {
+  <form [formGroup]="form">
+    <!-- Header section stays the same -->
 
-    <div *ngIf="addingNewMeasureObj"
-      class="flex items-center space-x-3 bg-gray-50 p-4 cursor-pointer hover:bg-gray-100 md:flex-row flex-col items-start border border-gray-300 rounded-lg mb-4">
+    <!-- Measurement Objects -->
+    <div formArrayName="measureObjList">
+      @if(!hasVisibleMeasureObjItems()) {
+      <p class="text-sm text-gray-600 mb-2">No measurment object found for this cell.</p>
+      }
+      @for(measureObjControl of getMeasureObjControls(); track measureObjControl;let i = $index){
+      <div [formGroupName]="i" class="border border-gray-300 rounded-lg mb-4"
+        [ngStyle]="{ display: measurementData.measureObjList[i]._show ? 'block' : 'none' }">
 
-      <form [formGroup]="newMeasureObjForm">
-        <h3 class="font-semibold text-lg flex p-2">
-          Add new measure object
-        </h3>
-        <div class="mb-2 font-semibold flex gap-4 items-center justify-center">
-          <span class="text-gray-500">Name:</span>
-          <input formControlName="name" class="border rounded px-2 py-1 w-full font-medium mb-2" placeholder="name" />
-          <span class="text-gray-500">Abbreviation:</span>
-          <input formControlName="abbreviation" class="border rounded px-2 py-1 w-full font-medium mb-2"
-            placeholder="abbreviation" />
-        </div>
-        <div class="flex gap-2">
-          <button (click)="confirmAddNewMeasureObj()" class="text-green-600 text-sm cursor-pointer">Save</button>
-          <button (click)="cancelAddNewMeasureObj()" class="text-red-600 text-sm cursor-pointer">Cancel</button>
-        </div>
-      </form>
-    </div>
-    <!-- Replace the existing form tag and its content -->
-    <form [formGroup]="form">
-      <!-- Header section stays the same -->
-
-      <!-- Measurement Objects -->
-      <div formArrayName="measureObjList">
-        @if(!hasVisibleMeasureObjItems()) {
-        <p class="text-sm text-gray-600 mb-2">No measurment object found for this cell.</p>
-        }
-        @for(measureObjControl of getMeasureObjControls(); track measureObjControl;let i = $index){
-        <div [formGroupName]="i" class="border border-gray-300 rounded-lg mb-4"
-          [ngStyle]="{ display: measurementData.measureObjList[i]._show ? 'block' : 'none' }">
-
-          <div *ngIf="measurementData.measureObjList[i]._show" class="sticky top-0">
-            <div
-              class="flex items-center space-x-3 bg-gray-50 p-4 cursor-pointer hover:bg-gray-100 md:flex-row flex-col items-start"
-              (click)="toggleSection('measureObj-' + i)">
-              <div>
-                <span *ngIf="expandedSections['measureObj-' + i]">▼</span>
-                <span *ngIf="!expandedSections['measureObj-' + i]">▶</span>
-                <span class="text-blue-600">🗄️</span>
-              </div>
-              <div *ngIf="!editingMeasureObjName[measurementData.measureObjList[i].measureObjId]">
-                <h3 class="font-semibold text-lg flex"> {{ measureObjControl.get('name')?.value }} <span
-                    *ngIf="measureObjControl.get('abbreviation')?.value">({{measureObjControl.get('abbreviation')?.value}})</span>
-                  <span class="text-3xl px-2"
-                    (click)="$event.stopPropagation(); onObjectMeasureTitleEditClick(measurementData.measureObjList[i].measureObjId)">✎</span>
-                </h3>
-                <p class="text-gray-600 text-sm">ID: {{ measurementData.measureObjList[i].measureObjId }}</p>
-
-              </div>
-              <div *ngIf="editingMeasureObjName[measurementData.measureObjList[i].measureObjId]"
-                (click)="$event.stopPropagation()">
-                <div class="mb-2 font-semibold flex gap-2 items-center justify-center">
-                  <span class="text-gray-500">name:</span>
-                  <input formControlName="name" class="border rounded px-2 py-1 w-full font-medium mb-2"
-                    placeholder="name" />
-                  <span class="text-gray-500">Abbreviation:</span>
-                  <input formControlName="abbreviation" class="border rounded px-2 py-1 w-full font-medium mb-2"
-                    placeholder="abbreviation" />
-                </div>
-                <div class="flex gap-2">
-                  <button (click)="confirmMeasureObjTitleChange(measureObjControl, measurementData.measureObjList[i])"
-                    class="text-green-600 text-sm cursor-pointer">Save</button>
-                  <button (click)="cancelMeasureObjTitleEdit(measureObjControl, measurementData.measureObjList[i])"
-                    class="text-red-600 text-sm cursor-pointer">Cancel</button>
-                </div>
-                <p class="text-gray-600 text-sm">ID: {{ measurementData.measureObjList[i].measureObjId }}</p>
-              </div>
-              <div class="flex space-x-2 md:gap-4 mb-3">
-                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">{{
-                  measureObjControl.get('counterList')?.value.length }}
-                  Counters</span>
-                <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">{{
-                  measureObjControl.get('kpiList')?.value.length }}
-                  KPIs</span>
-                <span *ngIf="getAllKpiErrors(measurementData.measureObjList[i]).length > 0"
-                  class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">{{getAllKpiErrors(measurementData.measureObjList[i]).length}}
-                  Error in KPIs
-                </span>
-                <span *ngIf="getAllCountersErrors(measurementData.measureObjList[i]).length > 0"
-                  class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">{{getAllCountersErrors(measurementData.measureObjList[i]).length}}
-                  Error in Counters
-                </span>
-              </div>
-              <button (click)="removeMeasurementObject(i)"
-                class="ml-auto text-red-600 text-sm cursor-pointer">Remove</button>
+        <div *ngIf="measurementData.measureObjList[i]._show" class="sticky top-0">
+          <div
+            class="flex items-center space-x-3 bg-gray-50 p-4 cursor-pointer hover:bg-gray-100 md:flex-row flex-col items-start"
+            (click)="toggleSection('measureObj-' + i)">
+            <div>
+              <span *ngIf="expandedSections['measureObj-' + i]">▼</span>
+              <span *ngIf="!expandedSections['measureObj-' + i]">▶</span>
+              <span class="text-blue-600">🗄️</span>
             </div>
+            <div *ngIf="!editingMeasureObjName[measurementData.measureObjList[i].measureObjId]">
+              <h3 class="font-semibold text-lg flex"> {{ measureObjControl.get('name')?.value }} <span
+                  *ngIf="measureObjControl.get('abbreviation')?.value">({{measureObjControl.get('abbreviation')?.value}})</span>
+                <span class="text-3xl px-2"
+                  (click)="$event.stopPropagation(); onObjectMeasureTitleEditClick(measurementData.measureObjList[i].measureObjId)">✎</span>
+              </h3>
+              <p class="text-gray-600 text-sm">ID: {{ measurementData.measureObjList[i].measureObjId }}</p>
 
+            </div>
+            <div *ngIf="editingMeasureObjName[measurementData.measureObjList[i].measureObjId]"
+              (click)="$event.stopPropagation()">
+              <div class="mb-2 font-semibold flex gap-2 items-center justify-center">
+                <span class="text-gray-500">name:</span>
+                <input formControlName="name" class="border rounded px-2 py-1 w-full font-medium mb-2"
+                  placeholder="name" />
+                <span class="text-gray-500">Abbreviation:</span>
+                <input formControlName="abbreviation" class="border rounded px-2 py-1 w-full font-medium mb-2"
+                  placeholder="abbreviation" />
+              </div>
+              <div class="flex gap-2">
+                <button (click)="confirmMeasureObjTitleChange(measureObjControl, measurementData.measureObjList[i])"
+                  class="text-green-600 text-sm cursor-pointer">Save</button>
+                <button (click)="cancelMeasureObjTitleEdit(measureObjControl, measurementData.measureObjList[i])"
+                  class="text-red-600 text-sm cursor-pointer">Cancel</button>
+              </div>
+              <p class="text-gray-600 text-sm">ID: {{ measurementData.measureObjList[i].measureObjId }}</p>
+            </div>
+            <div class="flex space-x-2 md:gap-4 mb-3">
+              <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">{{
+                measureObjControl.get('counterList')?.value.length }}
+                Counters</span>
+              <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">{{
+                measureObjControl.get('kpiList')?.value.length }}
+                KPIs</span>
+              <span *ngIf="getAllKpiErrors(measurementData.measureObjList[i]).length > 0"
+                class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">{{getAllKpiErrors(measurementData.measureObjList[i]).length}}
+                Error in KPIs
+              </span>
+              <span *ngIf="getAllCountersErrors(measurementData.measureObjList[i]).length > 0"
+                class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">{{getAllCountersErrors(measurementData.measureObjList[i]).length}}
+                Error in Counters
+              </span>
+            </div>
+            <button (click)="removeMeasurementObject(i)"
+              class="ml-auto text-red-600 text-sm cursor-pointer">Remove</button>
           </div>
 
-          <div *ngIf="expandedSections['measureObj-' + i]" class="p-4">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <!-- Counters Section -->
-              <div class="flex flex-col gap-2">
-                <div class="flex items-center justify-between mb-4">
-                  <h4 class="font-semibold text-blue-900">Counters</h4>
-                  <button type="button" [disabled]="addingNewCounter" (click)="startAddingNewCounter()"
-                    [ngClass]="addingNewCounter ? 'bg-green-300 text-gray-400 cursor-not-allowed' : 'bg-green-500 text-white cursor-pointer'"
-                    class="px-2 py-1 rounded text-xs">
-                    + Add new Counter
-                  </button>
-                </div>
+        </div>
 
-                <!-- Search input for counters -->
-                <input type="text" [(ngModel)]="measurementData.measureObjList[i].counterSearchTerm"
-                  (ngModelChange)="filterCounters(measurementData.measureObjList[i])"
-                  [ngModelOptions]="{standalone: true}" placeholder="Search Counters..."
-                  class="border border-blue-300 rounded-lg px-2 py-1 w-full text-sm " />
-                <div>
-                  <div *ngIf="addingNewCounter" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
-                    <form [formGroup]="newCounterForm">
-                      <h4 class="font-semibold mb-2">New Counter</h4>
-                      <div class="mb-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Name:</label>
-                        <input formControlName="name" class="border rounded px-2 py-1 w-full font-medium"
-                          placeholder="Counter name" />
+        <div *ngIf="expandedSections['measureObj-' + i]" class="p-4">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Counters Section -->
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-blue-900">Counters</h4>
+                <button type="button" [disabled]="addingNewCounter" (click)="startAddingNewCounter()"
+                  [ngClass]="addingNewCounter ? 'bg-green-300 text-gray-400 cursor-not-allowed' : 'bg-green-500 text-white cursor-pointer'"
+                  class="px-2 py-1 rounded text-xs">
+                  + Add new Counter
+                </button>
+              </div>
+
+              <!-- Search input for counters -->
+              <input type="text" [(ngModel)]="measurementData.measureObjList[i].counterSearchTerm"
+                (ngModelChange)="filterCounters(measurementData.measureObjList[i])"
+                [ngModelOptions]="{standalone: true}" placeholder="Search Counters..."
+                class="border border-blue-300 rounded-lg px-2 py-1 w-full text-sm " />
+              <div>
+                <div *ngIf="addingNewCounter" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
+                  <form [formGroup]="newCounterForm">
+                    <h4 class="font-semibold mb-2">New Counter</h4>
+                    <div class="mb-2">
+                      <label class="block text-sm font-medium text-gray-700 mb-1">Name:</label>
+                      <input formControlName="name" class="border rounded px-2 py-1 w-full font-medium"
+                        placeholder="Counter name" />
+                    </div>
+                    <div class="mb-2">
+                      <label class="block text-sm font-medium text-gray-700 mb-1">Cumulative:</label>
+                      <select formControlName="cumulative" class="border rounded px-2 py-1 w-full cursor-pointer">
+                        <option [ngValue]="true">Cumulative</option>
+                        <option [ngValue]="false">Non-cumulative</option>
+                      </select>
+                    </div>
+                    <div class="mb-2">
+                      <label class="block text-sm font-medium text-gray-700 mb-1">Unit:</label>
+                      <select formControlName="unit" class="border rounded px-2 py-1 w-full cursor-pointer">
+                        <option *ngFor="let u of units" [ngValue]="u">{{u}}</option>
+                      </select>
+                    </div>
+                    <div class="flex gap-2">
+                      <button (click)="confirmAddNewCounter(measurementData.measureObjList[i])"
+                        class="bg-green-600 text-white px-4 py-1 rounded hover:bg-green-700">
+                        Add Counter
+                      </button>
+                      <button (click)="cancelAddNewCounter()" class="bg-gray-300 px-4 py-1 rounded hover:bg-gray-400">
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+              <div formArrayName="counterList">
+                <!-- Counters FormArray -->
+                @if(!hasVisibleCounterItems(i)) {
+                <p class="text-sm text-gray-600 mb-2">No counters found for this measurement object.</p>
+                }
+                @for(counterControl of getCounterControls(i); track counterControl; let ci = $index) {
+                <div [formGroupName]="ci">
+                  <div *ngIf="measurementData.measureObjList[i].counterList[ci]._show"
+                    class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
+                    <div class="mb-2 font-semibold flex gap-2">
+                      <span class="text-gray-500">Name:</span>
+                      <input formControlName="name" class="border rounded px-2 py-1 w-full font-medium mb-2"
+                        placeholder="Counter name" />
+                      <button *ngIf="editingCounterName[measurementData.measureObjList[i].counterList[ci].id]"
+                        (click)="confirmCounterNameChange(counterControl, measurementData.measureObjList[i].counterList[ci])"
+                        class="text-green-600 text-sm cursor-pointer">Save</button>
+                      <button *ngIf="editingCounterName[measurementData.measureObjList[i].counterList[ci].id]"
+                        (click)="cancelCounterEdit(counterControl, measurementData.measureObjList[i].counterList[ci])"
+                        class="text-red-600 text-sm cursor-pointer">Cancel</button>
+                    </div>
+                    <div class="flex justify-between items-center mb-2 flex-wrap gap-2 text-xs">
+                      <div>
+                        <span class="text-gray-500">ID:</span>
+                        <input value="{{measurementData.measureObjList[i].counterList[ci].id}}" [disabled]="true"
+                          class="ml-2 font-mono border rounded px-1 w-30 bg-gray-100 text-gray-500 cursor-not-allowed" />
                       </div>
-                      <div class="mb-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Cumulative:</label>
-                        <select formControlName="cumulative" class="border rounded px-2 py-1 w-full cursor-pointer">
-                          <option [ngValue]="true">Cumulative</option>
-                          <option [ngValue]="false">Non-cumulative</option>
-                        </select>
-                      </div>
-                      <div class="mb-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Unit:</label>
-                        <select formControlName="unit" class="border rounded px-2 py-1 w-full cursor-pointer">
+                      <select formControlName="cumulative" class="border rounded px-1 text-xs cursor-pointer ml-2">
+                        <option [ngValue]="true">Cumulative</option>
+                        <option [ngValue]="false">Non-cumulative</option>
+                      </select>
+                      <div class="text-xs">
+                        <span class="text-gray-500">Unit:</span>
+                        <select formControlName="unit" class="ml-2 border rounded px-1 w-20">
                           <option *ngFor="let u of units" [ngValue]="u">{{u}}</option>
                         </select>
                       </div>
-                      <div class="flex gap-2">
-                        <button (click)="confirmAddNewCounter(measurementData.measureObjList[i])"
-                          class="bg-green-600 text-white px-4 py-1 rounded hover:bg-green-700">
-                          Add Counter
-                        </button>
-                        <button (click)="cancelAddNewCounter()" class="bg-gray-300 px-4 py-1 rounded hover:bg-gray-400">
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-                <div formArrayName="counterList">
-                  <!-- Counters FormArray -->
-                  @if(!hasVisibleCounterItems(i)) {
-                  <p class="text-sm text-gray-600 mb-2">No counters found for this measurement object.</p>
-                  }
-                  @for(counterControl of getCounterControls(i); track counterControl; let ci = $index) {
-                  <div [formGroupName]="ci">
-                    <div *ngIf="measurementData.measureObjList[i].counterList[ci]._show"
-                      class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
-                      <div class="mb-2 font-semibold flex gap-2">
-                        <span class="text-gray-500">Name:</span>
-                        <input formControlName="name" class="border rounded px-2 py-1 w-full font-medium mb-2"
-                          placeholder="Counter name" />
-                        <button *ngIf="editingCounterName[measurementData.measureObjList[i].counterList[ci].id]"
-                          (click)="confirmCounterNameChange(counterControl, measurementData.measureObjList[i].counterList[ci])"
-                          class="text-green-600 text-sm cursor-pointer">Save</button>
-                        <button *ngIf="editingCounterName[measurementData.measureObjList[i].counterList[ci].id]"
-                          (click)="cancelCounterEdit(counterControl, measurementData.measureObjList[i].counterList[ci])"
-                          class="text-red-600 text-sm cursor-pointer">Cancel</button>
-                      </div>
-                      <div class="flex justify-between items-center mb-2 flex-wrap gap-2 text-xs">
-                        <div>
-                          <span class="text-gray-500">ID:</span>
-                          <input value="{{measurementData.measureObjList[i].counterList[ci].id}}" [disabled]="true"
-                            class="ml-2 font-mono border rounded px-1 w-30 bg-gray-100 text-gray-500 cursor-not-allowed" />
-                        </div>
-                        <select formControlName="cumulative" class="border rounded px-1 text-xs cursor-pointer ml-2">
-                          <option [ngValue]="true">Cumulative</option>
-                          <option [ngValue]="false">Non-cumulative</option>
-                        </select>
-                        <div class="text-xs">
-                          <span class="text-gray-500">Unit:</span>
-                          <select formControlName="unit" class="ml-2 border rounded px-1 w-20">
-                            <option *ngFor="let u of units" [ngValue]="u">{{u}}</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div
-                        *ngIf="getKpisUsingCounter(measurementData.measureObjList[i], measurementData.measureObjList[i].counterList[ci]).length > 0"
-                        class="mt-2 px-2 py-2 border border-yellow-500 bg-yellow-50 text-yellow-700 rounded text-xs">
-                        ❕ This counter is used in:
-                        <ul class="list-disc ml-5">
-                          <li
-                            *ngFor="let kpi of getKpisUsingCounter(measurementData.measureObjList[i], measurementData.measureObjList[i].counterList[ci])">
-                            KPI {{ kpi.kpiId }} – {{ kpi.name }}
-                          </li>
-                        </ul>
-                        <p class="mt-1">If you delete this counter, remove it from these KPIs first.</p>
-                      </div>
-                      <div *ngIf="validateCounterName(measurementData.measureObjList[i].counterList[ci]).length > 0"
-                        class="bg-red-50 text-red-800 mt-2 px-2 py-2 border border-red-500 bg-red-50 text-red-700 rounded text-xs">
-                        <div *ngFor="let err of validateCounterName(measurementData.measureObjList[i].counterList[ci])">
-                          ⛔ {{ err }}
-                        </div>
-                      </div>
-                      <div class="flex justify-between mt-2">
-                        <button type="button" (click)="removeCounter(measurementData.measureObjList[i], ci)"
-                          class="text-red-600 text-xs cursor-pointer">
-                          Remove
-                        </button>
-
-                        <button type="button"
-                          (click)="openFormulaFullscreenTransferCounter(measurementData.measureObjList[i], measurementData.measureObjList[i].counterList[ci])"
-                          class=" text-xs cursor-pointer">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
-                            stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20 10H4l5.5-6" /> <!-- Up-left arrow -->
-                            <path d="M4 14h16l-5.5 6" /> <!-- Down-right arrow -->
-                          </svg>
-                        </button>
+                    </div>
+                    <div
+                      *ngIf="getKpisUsingCounterObject[measurementData.measureObjList[i].counterList[ci].id].length > 0"
+                      class="mt-2 px-2 py-2 border border-yellow-500 bg-yellow-50 text-yellow-700 rounded text-xs">
+                      ❕ This counter is used in:
+                      <ul class="list-disc ml-5">
+                        <li
+                          *ngFor="let kpi of getKpisUsingCounterObject[measurementData.measureObjList[i].counterList[ci].id]">
+                          KPI {{ kpi.kpiId }} – {{ kpi.name }}
+                        </li>
+                      </ul>
+                      <p class="mt-1">If you delete this counter, remove it from these KPIs first.</p>
+                    </div>
+                    <div *ngIf="validateCounterName(measurementData.measureObjList[i].counterList[ci]).length > 0"
+                      class="bg-red-50 text-red-800 mt-2 px-2 py-2 border border-red-500 bg-red-50 text-red-700 rounded text-xs">
+                      <div *ngFor="let err of validateCounterName(measurementData.measureObjList[i].counterList[ci])">
+                        ⛔ {{ err }}
                       </div>
                     </div>
+                    <div class="flex justify-between mt-2">
+                      <button type="button" (click)="removeCounter(measurementData.measureObjList[i], ci)"
+                        class="text-red-600 text-xs cursor-pointer">
+                        Remove
+                      </button>
+
+                      <button type="button"
+                        (click)="openFormulaFullscreenTransferCounter(measurementData.measureObjList[i], measurementData.measureObjList[i].counterList[ci])"
+                        class=" text-xs cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                          stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M20 10H4l5.5-6" /> <!-- Up-left arrow -->
+                          <path d="M4 14h16l-5.5 6" /> <!-- Down-right arrow -->
+                        </svg>
+                      </button>
+                    </div>
                   </div>
-                  }
                 </div>
+                }
+              </div>
+            </div>
+
+            <!-- KPIs Section -->
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-purple-900">KPIs</h4>
+                <button type="button" [disabled]="addingNewKpi" (click)="startAddingNewKpi()"
+                  [ngClass]="addingNewKpi ? 'bg-green-300 text-gray-400 cursor-not-allowed' : 'bg-green-500 text-white cursor-pointer'"
+                  class="px-2 py-1 rounded text-xs">
+                  + Add new KPI
+                </button>
               </div>
 
-              <!-- KPIs Section -->
-              <div class="flex flex-col gap-2">
-                <div class="flex items-center justify-between mb-4">
-                  <h4 class="font-semibold text-purple-900">KPIs</h4>
-                  <button type="button" [disabled]="addingNewKpi" (click)="startAddingNewKpi()"
-                    [ngClass]="addingNewKpi ? 'bg-green-300 text-gray-400 cursor-not-allowed' : 'bg-green-500 text-white cursor-pointer'"
-                    class="px-2 py-1 rounded text-xs">
-                    + Add new KPI
-                  </button>
-                </div>
-
-                <!-- Search input for KPIs -->
-                <input type="text" [(ngModel)]="measurementData.measureObjList[i].kpiSearchTerm"
-                  (ngModelChange)="filterKpis(measurementData.measureObjList[i])" [ngModelOptions]="{standalone: true}"
-                  placeholder="Search KPIs..."
-                  class="border border-blue-300 rounded-lg px-2 py-1 w-full text-sm" />
-                <div>
-                  <div *ngIf="addingNewKpi" class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-3">
-                    <form [formGroup]="newKpiForm">
-                      <h4 class="font-semibold mb-2">New KPI</h4>
-                      <div class="mb-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Name:</label>
-                        <input formControlName="name" class="border rounded px-2 py-1 w-full font-medium"
-                          placeholder="KPI name" />
-                      </div>
-                      <!-- <div class="mb-2">
+              <!-- Search input for KPIs -->
+              <input type="text" [(ngModel)]="measurementData.measureObjList[i].kpiSearchTerm"
+                (ngModelChange)="filterKpis(measurementData.measureObjList[i])" [ngModelOptions]="{standalone: true}"
+                placeholder="Search KPIs..." class="border border-blue-300 rounded-lg px-2 py-1 w-full text-sm" />
+              <div>
+                <div *ngIf="addingNewKpi" class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-3">
+                  <form [formGroup]="newKpiForm">
+                    <h4 class="font-semibold mb-2">New KPI</h4>
+                    <div class="mb-2">
+                      <label class="block text-sm font-medium text-gray-700 mb-1">Name:</label>
+                      <input formControlName="name" class="border rounded px-2 py-1 w-full font-medium"
+                        placeholder="KPI name" />
+                    </div>
+                    <!-- <div class="mb-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Title:</label>
                         <input formControlName="title" class="border rounded px-2 py-1 w-full font-medium"
                           placeholder="KPI title" />
                       </div> -->
-                      <div class="mb-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">indicator:</label>
-                        <select formControlName="indicator" class="border rounded px-2 py-1 w-full cursor-pointer">
-                          <option [ngValue]="'p'">P</option>
-                          <option [ngValue]="'n'">N</option>
-                        </select>
-                      </div>
-                      <div class="mb-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Unit:</label>
-                        <select formControlName="unit" class="border rounded px-2 py-1 w-full cursor-pointer">
-                          <option *ngFor="let u of units" [ngValue]="u">{{u}}</option>
-                        </select>
-                      </div>
-                      <div class="mb-2">
-                        <div class="flex justify-between items-center mb-1">
-                          <label class="block text-sm font-medium text-gray-700 mb-1">Formula:</label>
-                          <button type="button"
-                            class="text-blue-600 text-sm cursor-pointer border border-blue-600 px-2 py-1 rounded hover:bg-blue-100"
-                            (click)="openFormulaFullscreenEdit(measurementData.measureObjList[i], newKpiForm.get('formula'))">
-                            Full Screen Edit
-                          </button>
-                        </div>
-                        <textarea formControlName="formula" class="border rounded px-2 py-1 w-full" rows="3"></textarea>
-                      </div>
-                      <div class="flex gap-2">
-                        <button (click)="confirmAddNewKpi(measurementData.measureObjList[i])"
-                          class="bg-green-600 text-white px-4 py-1 rounded hover:bg-green-700">
-                          Add KPI
-                        </button>
-                        <button (click)="cancelAddNewKpi()" class="bg-gray-300 px-4 py-1 rounded hover:bg-gray-400">
-                          Cancel
+                    <div class="mb-2">
+                      <label class="block text-sm font-medium text-gray-700 mb-1">indicator:</label>
+                      <select formControlName="indicator" class="border rounded px-2 py-1 w-full cursor-pointer">
+                        <option [ngValue]="'p'">P</option>
+                        <option [ngValue]="'n'">N</option>
+                      </select>
+                    </div>
+                    <div class="mb-2">
+                      <label class="block text-sm font-medium text-gray-700 mb-1">Unit:</label>
+                      <select formControlName="unit" class="border rounded px-2 py-1 w-full cursor-pointer">
+                        <option *ngFor="let u of units" [ngValue]="u">{{u}}</option>
+                      </select>
+                    </div>
+                    <div class="mb-2">
+                      <div class="flex justify-between items-center mb-1">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Formula:</label>
+                        <button type="button"
+                          class="text-blue-600 text-sm cursor-pointer border border-blue-600 px-2 py-1 rounded hover:bg-blue-100"
+                          (click)="openFormulaFullscreenEdit(measurementData.measureObjList[i], newKpiForm.get('formula'))">
+                          Full Screen Edit
                         </button>
                       </div>
-                    </form>
-                  </div>
+                      <textarea formControlName="formula" class="border rounded px-2 py-1 w-full" rows="3"></textarea>
+                    </div>
+                    <div class="flex gap-2">
+                      <button (click)="confirmAddNewKpi(measurementData.measureObjList[i])"
+                        class="bg-green-600 text-white px-4 py-1 rounded hover:bg-green-700">
+                        Add KPI
+                      </button>
+                      <button (click)="cancelAddNewKpi()" class="bg-gray-300 px-4 py-1 rounded hover:bg-gray-400">
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
                 </div>
-                <div formArrayName="kpiList">
-                  <!-- KPIs FormArray -->
-                  @if(!hasVisibleKpiItems(i)) {
-                  <p class="text-sm text-gray-600 mb-2">No kpi found for this measurement object.</p>
-                  }
-                  @for(kpiControl of getKpiControls(i); track kpiControl; let ki = $index) {
-                  <div [formGroupName]="ki">
-                    <div *ngIf="measurementData.measureObjList[i].kpiList[ki]._show"
-                      class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-3 flex flex-col gap-4">
-                      <div class="mb-2 font-semibold flex gap-2">
-                        <span class="text-gray-500">Name:</span>
-                        <input formControlName="name" class="border rounded px-1 w-full" placeholder="KPI name" />
-                        <button *ngIf="editingKpiName[measurementData.measureObjList[i].kpiList[ki].kpiId]"
-                          (click)="confirmKpiNameChange(kpiControl, measurementData.measureObjList[i].kpiList[ki])"
-                          class="text-green-600 text-sm cursor-pointer">Save</button>
-                        <button *ngIf="editingKpiName[measurementData.measureObjList[i].kpiList[ki].kpiId]"
-                          (click)="cancelKpiNameEdit(kpiControl, measurementData.measureObjList[i].kpiList[ki])"
-                          class="text-red-600 text-sm cursor-pointer">Cancel</button>
-                      </div>
-                      <!-- <div class="mb-2 font-semibold flex gap-2">
+              </div>
+              <div formArrayName="kpiList">
+                <!-- KPIs FormArray -->
+                @if(!hasVisibleKpiItems(i)) {
+                <p class="text-sm text-gray-600 mb-2">No kpi found for this measurement object.</p>
+                }
+                @for(kpiControl of getKpiControls(i); track kpiControl; let ki = $index) {
+                <div [formGroupName]="ki">
+                  <div *ngIf="measurementData.measureObjList[i].kpiList[ki]._show"
+                    class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-3 flex flex-col gap-4">
+                    <div class="mb-2 font-semibold flex gap-2">
+                      <span class="text-gray-500">Name:</span>
+                      <input formControlName="name" class="border rounded px-1 w-full" placeholder="KPI name" />
+                      <button *ngIf="editingKpiName[measurementData.measureObjList[i].kpiList[ki].kpiId]"
+                        (click)="confirmKpiNameChange(kpiControl, measurementData.measureObjList[i].kpiList[ki])"
+                        class="text-green-600 text-sm cursor-pointer">Save</button>
+                      <button *ngIf="editingKpiName[measurementData.measureObjList[i].kpiList[ki].kpiId]"
+                        (click)="cancelKpiNameEdit(kpiControl, measurementData.measureObjList[i].kpiList[ki])"
+                        class="text-red-600 text-sm cursor-pointer">Cancel</button>
+                    </div>
+                    <!-- <div class="mb-2 font-semibold flex gap-2">
                         <span class="text-gray-500">Title:</span>
                         <input formControlName="title" class="border rounded px-1 w-full" placeholder="KPI Title" />
                         <button *ngIf="editingKpiTitle[measurementData.measureObjList[i].kpiList[ki].kpiId]"
@@ -508,146 +432,119 @@
                           (click)="cancelKpiTitleEdit(kpiControl, measurementData.measureObjList[i].kpiList[ki])"
                           class="text-red-600 text-sm cursor-pointer">Cancel</button>
                       </div> -->
-                      <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
-                        <div class="text-xs">
-                          <span class="text-gray-500">KPI ID:</span>
-                          <input value="{{measurementData.measureObjList[i].kpiList[ki].kpiId}}" type="number"
-                            [disabled]="true"
-                            class="ml-2 font-mono border rounded px-1 w-30 bg-gray-100 text-gray-500 cursor-not-allowed" />
-                        </div>
-                        <div class="flex gap-2 text-xs">
-                          <span class="text-gray-500">Indicator:</span>
-                          <select formControlName="indicator" class=" border rounded px-1 cursor-pointer">
-                            <option value="p">P</option>
-                            <option value="n">N</option>
-                          </select>
-                        </div>
-                        <div class="flex gap-2 text-xs">
-                          <span class="text-gray-500">Unit:</span>
-                          <select formControlName="unit" class="ml-2 border rounded px-1 w-20">
-                            <option *ngFor="let u of units" [ngValue]="u">{{u}}</option>
-                          </select>
-                        </div>
+                    <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+                      <div class="text-xs">
+                        <span class="text-gray-500">KPI ID:</span>
+                        <input value="{{measurementData.measureObjList[i].kpiList[ki].kpiId}}" type="number"
+                          [disabled]="true"
+                          class="ml-2 font-mono border rounded px-1 w-30 bg-gray-100 text-gray-500 cursor-not-allowed" />
                       </div>
-
-                      <div class="mb-1">
-                        <div class="flex justify-between items-center mb-1">
-                          <span class="text-gray-500">Formula:</span>
-                          <button type="button"
-                            class="text-blue-600 text-sm cursor-pointer border border-blue-600 px-2 py-1 rounded hover:bg-blue-100"
-                            (click)="openFormulaFullscreenEdit(measurementData.measureObjList[i], kpiControl.get('formula'))">
-                            Full Screen Edit
-                          </button>
-                        </div>
-                        <textarea formControlName="formula" class="ml-2 border rounded px-1 w-full" rows="3"></textarea>
-
-                        <div class="flex gap-2">
-                          <button *ngIf="editingKpiFormula[measurementData.measureObjList[i].kpiList[ki].kpiId]"
-                            (click)="confirmKpiFormulaChange(kpiControl, measurementData.measureObjList[i].kpiList[ki])"
-                            class="text-green-600 text-sm cursor-pointer">Save</button>
-                          <button *ngIf="editingKpiFormula[measurementData.measureObjList[i].kpiList[ki].kpiId]"
-                            (click)="cancelKpiFormulaEdit(kpiControl, measurementData.measureObjList[i].kpiList[ki])"
-                            class="text-red-600 text-sm cursor-pointer">Cancel</button>
-                        </div>
+                      <div class="flex gap-2 text-xs">
+                        <span class="text-gray-500">Indicator:</span>
+                        <select formControlName="indicator" class=" border rounded px-1 cursor-pointer">
+                          <option value="p">P</option>
+                          <option value="n">N</option>
+                        </select>
                       </div>
-
-                      <div class="mb-3">
-                        <textarea disabled="true" rows="2"
-                          value="{{getKpiFormulaForExport(measurementData.measureObjList[i].kpiList[ki])}}"
-                          class="ml-2 font-mono border rounded px-1 w-full bg-gray-100 text-gray-500 cursor-not-allowed"></textarea>
-                      </div>
-
-                      <!-- KPI dependency warning -->
-                      <div
-                        *ngIf="getCountersUsedByKpi(measurementData.measureObjList[i], measurementData.measureObjList[i].kpiList[ki]).length > 0"
-                        class="mt-2 px-2 py-2 border border-yellow-500 bg-yellow-50 text-yellow-700 rounded text-xs">
-                        ❕ This KPI depends on:
-                        <ul class="list-disc ml-5">
-                          <li class="mb-1 break-words"
-                            *ngFor="let counter of getCountersUsedByKpi(measurementData.measureObjList[i], measurementData.measureObjList[i].kpiList[ki])">
-                            Counter {{ counter.id }} – {{ counter.name }}
-                          </li>
-                        </ul>
-                        <p class="mt-1">If you delete this KPI, those counters might become unused.</p>
-                      </div>
-                      <div
-                        *ngIf="validateKpiCounters(measurementData.measureObjList[i], measurementData.measureObjList[i].kpiList[ki]).length > 0"
-                        class="bg-red-50 text-red-800 mt-2 px-2 py-2 border border-red-500 bg-red-50 text-red-700 rounded text-xs">
-                        <div
-                          *ngFor="let err of validateKpiCounters(measurementData.measureObjList[i], measurementData.measureObjList[i].kpiList[ki])">
-                          ⛔ {{ err }}
-                        </div>
-                      </div>
-                      <div
-                        *ngIf="validateFormula(measurementData.measureObjList[i].kpiList[ki].formula, measurementData.measureObjList[i].kpiList[ki]._usedCounters).length > 0"
-                        class="bg-red-50 text-red-800 mt-2 px-2 py-2 border border-red-500 bg-red-50 text-red-700 rounded text-xs">
-                        <div
-                          *ngFor="let err of validateFormula(measurementData.measureObjList[i].kpiList[ki].formula, measurementData.measureObjList[i].kpiList[ki]._usedCounters)">
-                          ⛔ {{ err }}
-                        </div>
-                      </div>
-                      <div *ngIf="validateKpiTitle(measurementData.measureObjList[i].kpiList[ki]).length > 0"
-                        class="bg-red-50 text-red-800 mt-2 px-2 py-2 border border-red-500 bg-red-50 text-red-700 rounded text-xs">
-                        <div *ngFor="let err of validateKpiTitle(measurementData.measureObjList[i].kpiList[ki])">
-                          ⛔ {{ err }}
-                        </div>
-                      </div>
-                      <div class="flex justify-between mt-2">
-                        <button type="button" (click)="removeKpi(measurementData.measureObjList[i], ki)"
-                          class="text-red-600 text-xs cursor-pointer">
-                          Remove
-                        </button>
-
-                        <button type="button"
-                          (click)="openFormulaFullscreenTransferKpi(measurementData.measureObjList[i], measurementData.measureObjList[i].kpiList[ki])"
-                          class=" text-xs cursor-pointer">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
-                            stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20 10H4l5.5-6" /> <!-- Up-left arrow -->
-                            <path d="M4 14h16l-5.5 6" /> <!-- Down-right arrow -->
-                          </svg>
-                        </button>
+                      <div class="flex gap-2 text-xs">
+                        <span class="text-gray-500">Unit:</span>
+                        <select formControlName="unit" class="ml-2 border rounded px-1 w-20">
+                          <option *ngFor="let u of units" [ngValue]="u">{{u}}</option>
+                        </select>
                       </div>
                     </div>
-                  </div>
-                  }
-                </div>
-              </div>
 
+                    <div class="mb-1">
+                      <div class="flex justify-between items-center mb-1">
+                        <span class="text-gray-500">Formula:</span>
+                        <button type="button"
+                          class="text-blue-600 text-sm cursor-pointer border border-blue-600 px-2 py-1 rounded hover:bg-blue-100"
+                          (click)="openFormulaFullscreenEdit(measurementData.measureObjList[i], kpiControl.get('formula'))">
+                          Full Screen Edit
+                        </button>
+                      </div>
+                      <textarea formControlName="formula" class="ml-2 border rounded px-1 w-full" rows="3"></textarea>
+
+                      <div class="flex gap-2">
+                        <button *ngIf="editingKpiFormula[measurementData.measureObjList[i].kpiList[ki].kpiId]"
+                          (click)="confirmKpiFormulaChange(kpiControl, measurementData.measureObjList[i].kpiList[ki])"
+                          class="text-green-600 text-sm cursor-pointer">Save</button>
+                        <button *ngIf="editingKpiFormula[measurementData.measureObjList[i].kpiList[ki].kpiId]"
+                          (click)="cancelKpiFormulaEdit(kpiControl, measurementData.measureObjList[i].kpiList[ki])"
+                          class="text-red-600 text-sm cursor-pointer">Cancel</button>
+                      </div>
+                    </div>
+
+                    <div class="mb-3">
+                      <textarea disabled="true" rows="2"
+                        value="{{getKpiFormulaForExport(measurementData.measureObjList[i].kpiList[ki])}}"
+                        class="ml-2 font-mono border rounded px-1 w-full bg-gray-100 text-gray-500 cursor-not-allowed"></textarea>
+                    </div>
+
+                    <!-- KPI dependency warning -->
+                    <div
+                      *ngIf="getCountersUsedByKpiObject[measurementData.measureObjList[i].kpiList[ki].kpiId].length > 0"
+                      class="mt-2 px-2 py-2 border border-yellow-500 bg-yellow-50 text-yellow-700 rounded text-xs">
+                      ❕ This KPI depends on:
+                      <ul class="list-disc ml-5">
+                        <li class="mb-1 break-words"
+                          *ngFor="let counter of getCountersUsedByKpiObject[measurementData.measureObjList[i].kpiList[ki].kpiId]">
+                          Counter {{ counter.id }} – {{ counter.name }}
+                        </li>
+                      </ul>
+                      <p class="mt-1">If you delete this KPI, those counters might become unused.</p>
+                    </div>
+                    <div
+                      *ngIf="validateKpiCounters(measurementData.measureObjList[i], measurementData.measureObjList[i].kpiList[ki]).length > 0"
+                      class="bg-red-50 text-red-800 mt-2 px-2 py-2 border border-red-500 bg-red-50 text-red-700 rounded text-xs">
+                      <div
+                        *ngFor="let err of validateKpiCounters(measurementData.measureObjList[i], measurementData.measureObjList[i].kpiList[ki])">
+                        ⛔ {{ err }}
+                      </div>
+                    </div>
+                    <div
+                      *ngIf="measurService.validateFormula(measurementData.measureObjList[i].kpiList[ki].formula, allCounters).length > 0"
+                      class="bg-red-50 text-red-800 mt-2 px-2 py-2 border border-red-500 bg-red-50 text-red-700 rounded text-xs">
+                      <div
+                        *ngFor="let err of measurService.validateFormula(measurementData.measureObjList[i].kpiList[ki].formula, allCounters)">
+                        ⛔ {{ err }}
+                      </div>
+                    </div>
+                    <div *ngIf="validateKpiTitle(measurementData.measureObjList[i].kpiList[ki]).length > 0"
+                      class="bg-red-50 text-red-800 mt-2 px-2 py-2 border border-red-500 bg-red-50 text-red-700 rounded text-xs">
+                      <div *ngFor="let err of validateKpiTitle(measurementData.measureObjList[i].kpiList[ki])">
+                        ⛔ {{ err }}
+                      </div>
+                    </div>
+                    <div class="flex justify-between mt-2">
+                      <button type="button" (click)="removeKpi(measurementData.measureObjList[i], ki)"
+                        class="text-red-600 text-xs cursor-pointer">
+                        Remove
+                      </button>
+
+                      <button type="button"
+                        (click)="openFormulaFullscreenTransferKpi(measurementData.measureObjList[i], measurementData.measureObjList[i].kpiList[ki])"
+                        class=" text-xs cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                          stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M20 10H4l5.5-6" /> <!-- Up-left arrow -->
+                          <path d="M4 14h16l-5.5 6" /> <!-- Down-right arrow -->
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                }
+              </div>
             </div>
+
           </div>
         </div>
-        }
       </div>
-    </form>
-  </ng-container>
-
-  <div *ngIf="showRestoreBanner" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded">
-    <p class="font-bold">Restore data?</p>
-    <p>You have a saved JSON file. Do you want to load it?</p>
-    <div class="mt-2 flex gap-2">
-      <button (click)="restoreFromLocalStorage()"
-        class="bg-yellow-500 text-white px-4 py-1 rounded hover:bg-yellow-600">
-        Load
-      </button>
-      <button (click)="clearLocalStorage()" class="bg-gray-300 px-4 py-1 rounded hover:bg-gray-400">
-        Clear
-      </button>
+      }
     </div>
-  </div>
-  <!-- JSON View -->
-  <ng-template #jsonView>
-    <div class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto">
-      <div class="flex justify-between items-center mb-2">
-        <span class="font-semibold text-white">JSON Output</span>
-        <button (click)="copyJson()"
-          class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 cursor-pointer">
-          Copy
-        </button>
-      </div>
-      <pre>{{ form.getRawValue() | json }}</pre>
-    </div>
-  </ng-template>
+  </form>
+  }
 </div>
 
 <div *ngIf="showFullscreenFormulaEditor"
@@ -681,10 +578,10 @@
         <label class="text-sm text-gray-700">Target Measure Obj:</label>
         <select [(ngModel)]="selectedTargetMeasureObjId" (ngModelChange)="selectTransferTarget($event)"
           [ngModelOptions]="{standalone: true}" class="border rounded px-2 py-1">
-          @for(mo of measurementData.measureObjList; track mo.measureObjId) {
-          @if(mo.measureObjId !== selectedMeasureObjForTransfer?.measureObjId) {
-          <option [ngValue]="mo.measureObjId">
-            {{ mo.name }} ({{ mo.abbreviation }})
+          @for(mob of allMeasureObjs; track mob.measureObjId) {
+          @if(mob.measureObjId !== selectedMeasureObjForTransfer?.measureObjId) {
+          <option [ngValue]="mob.measureObjId">
+            {{ mob.name }} ({{ mob.abbreviation }})
           </option>
           }
           }
@@ -714,7 +611,7 @@
         <label class="text-sm text-gray-700">Target Measure Obj:</label>
         <select [(ngModel)]="selectedTargetMeasureObjId" (ngModelChange)="selectTransferTarget($event)"
           [ngModelOptions]="{standalone: true}" class="border rounded px-2 py-1">
-          @for(mo of measurementData.measureObjList; track mo.measureObjId) {
+          @for(mo of allMeasureObjs; track mo.measureObjId) {
           @if(mo.measureObjId !== selectedMeasureObjForTransfer?.measureObjId) {
           <option [ngValue]="mo.measureObjId">
             {{ mo.name }} ({{ mo.abbreviation }})

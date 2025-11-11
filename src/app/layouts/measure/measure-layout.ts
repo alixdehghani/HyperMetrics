@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
+import { RouteService } from '../../core/services/route/route.service';
 
 @Component({
     imports: [
@@ -12,8 +13,6 @@ import { RouterModule } from '@angular/router';
     styleUrl: 'measure-layout.scss',
 })
 
-export class MeasureLayout implements OnInit {
-    constructor() { }
-
-    ngOnInit() { }
+export class MeasureLayout {    
+    routeService = inject(RouteService);
 }

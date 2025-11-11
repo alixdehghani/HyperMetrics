@@ -1,77 +1,36 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnDestroy, OnInit } from '@angular/core';
-import { AbstractControl, FormArray, FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Component, computed, inject, OnDestroy, OnInit } from '@angular/core';
+import { AbstractControl, FormArray, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
 import { FormBuilder, FormGroup } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormulaInput } from '../../../shared/formula-input/formula-input';
 import { UNITS } from '../../../core/interfaces/unit.types';
 import { FormulaParserService } from '../../../core/helper/formula-helper';
+import { Counter, CounterItem, KPI, MeasureObjType, MeasureObj, MeasureType } from '../../../core/interfaces/measures.interfaces';
+import { MeasurService } from '../measur.service';
+import { MeasureExport } from '../export/export';
+import { RouteService } from '../../../core/services/route/route.service';
 
-interface measurementData {
-  measureType: string,
-  measureId: string,
-  measureObjList: MeasureObj[]
-}
-interface CounterItem {
-  id: string;
-  name: string;
-  displayName?: string;
-}
 
-interface Counter {
-  name: string;
-  unit: string;
-  id: string;
-  cumulative: boolean;
-  _numericId?: string;
-  _show: boolean;
-}
-
-interface KPI {
-  kpiId: string;
-  // kpiCounterList: string;
-  formula: string;
-  formulaWithCountersId?: string
-  name: string;
-  title: string;
-  indicator: string; // "p" or "n",
-  unit: string
-  _usedCounters: Counter[];
-  _show: boolean;
-}
-
-interface MeasureObj {
-  measureObjId: string;
-  name: string;
-  abbreviation: string;
-  counterList: Counter[];
-  kpiList: KPI[];
-  // filteredCounterList?: Counter[];
-  // filteredKpiList?: KPI[];
-  kpiSearchTerm?: string;
-  counterSearchTerm?: string;
-  _show?: boolean;
-}
 @Component({
   imports: [
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    FormulaInput
+    FormulaInput,
+    MeasureExport
   ],
   selector: 'app-cell-measurement',
   templateUrl: './cell-measurement.html',
 })
 export class CellMeasurementComponent implements OnInit, OnDestroy {
   expandedSections: { [key: string]: boolean } = {};
-  viewMode: 'ui' | 'json' = 'ui';
   searchTerm: string = '';
   editingCounterName: { [key: string]: boolean } = {};
   editingKpiName: { [key: string]: boolean } = {};
   editingKpiTitle: { [key: string]: boolean } = {};
   editingKpiFormula: { [key: string]: boolean } = {};
-  editingMeasureType = false;
   editingMeasureId = false;
   editingMeasureObjName: { [key: string]: boolean } = {};;
   editingMeasureObjAbbreviation: { [key: string]: boolean } = {};
@@ -81,16 +40,13 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   newMeasureObjForm!: FormGroup;
   newKpiForm!: FormGroup;
   addingNewKpi = false;
-  showRestoreBanner = false;
   availableCounters: CounterItem[] = [];
   private _kpiFormulaEditFc!: AbstractControl | null;
   $destroy = new Subject();
   initialFormula: string = '';
   newFormula: string = '';
   isValid: boolean = true;
-  readonly neVersion!: string;
-  readonly neTypeId!: string;
-  readonly neTypeName!: string;
+  readonly measureObjTypeId!: string;
   readonly units!: string[];
   showFullscreenFormulaEditor: boolean = false;
   showFullscreenTransferCounter: boolean = false;
@@ -100,34 +56,49 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   selectedMeasureObjForTransfer!: MeasureObj | null;
   selectedTargetMeasureObjId!: string | null;
   showSuccessMessage = false;
-  measurementData: measurementData = {
-    measureId: '',
+  measurementData: MeasureObjType = {
+    measureObjTypeId: '',
     measureObjList: [],
     measureType: ''
   }
 
   form: FormGroup;
+  getKpisUsingCounterObject: { [key: string]: KPI[] } = {};
+  getCountersUsedByKpiObject: { [key: string]: Counter[] } = {};
+  routeService = inject(RouteService);
   private _route = inject(ActivatedRoute);
+  private _router = inject(Router);
   private formulaParser = inject(FormulaParserService);
+  measurService = inject(MeasurService);
+  allCounters: Counter[] = [];
+  allKpis: KPI[] = [];
+  allMeasureObjs: MeasureObj[] = [];
   constructor(private fb: FormBuilder) {
-    this.neTypeId = this._route.snapshot.paramMap.get('typeId') || '';
-    this.neVersion = this._route.snapshot.data['neVersion'] || '';
-    this.neTypeName = this._route.snapshot.data['neTypeName'] || '';
+    this.measureObjTypeId = this._route.snapshot.paramMap.get('typeId') || '';
     this.units = UNITS;
 
     this.form = this.fb.group({
       measureType: [''],
-      measureId: [''],
+      measureObjTypeId: [this.measureObjTypeId],
       measureObjList: [[]]
     });
   }
 
 
   ngOnInit(): void {
-    const savedJson = localStorage.getItem('hyper_config');
-    if (savedJson) {
-      this.showRestoreBanner = true;
-    }
+    const file = this.measurService.getMeasureTypeById(this.measureObjTypeId);
+    if (!file) {
+      alert("No saved measurement configuration found for this measurement type.");
+      setTimeout(() => {
+        this.goBack();
+        return;
+      }, 3000);
+    };
+    const data = file!;
+    this._normalizeCountersAndKpis(data);
+    this.measurementData = data;
+    this._updateMeasurementObject();
+    this._initForm();
   }
 
   ngOnDestroy(): void {
@@ -155,7 +126,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   private _initForm() {
     const measureObjFormGroups = this.measurementData.measureObjList.map(obj =>
       this.fb.group({
-        // measureObjId: [obj.measureObjId],
+        measureObjId: [obj.measureObjId],
         name: [obj.name],
         abbreviation: [obj.abbreviation],
         counterList: this.fb.array(
@@ -163,6 +134,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
             this.fb.group({
               name: [counter.name],
               unit: [counter.unit],
+              id: [counter.id],
               cumulative: [counter.cumulative],
             })
           )
@@ -174,6 +146,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
               name: [kpi.name],
               indicator: [kpi.indicator],
               unit: [kpi.unit],
+              kpiId: [kpi.kpiId],
               title: [kpi.title],
             })
           )
@@ -183,11 +156,11 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
 
     this.form = this.fb.group({
       measureType: [this.measurementData.measureType],
-      measureId: [this.measurementData.measureId],
+      measureObjTypeId: [this.measurementData.measureObjTypeId],
       measureObjList: this.fb.array(measureObjFormGroups)
     });
-    this.form.get('measureType')?.valueChanges.pipe(takeUntil(this.$destroy)).subscribe(() => this.startEditingMeasureType());
-    this.form.get('measureId')?.valueChanges.pipe(takeUntil(this.$destroy)).subscribe(() => this.startEditingMeasureId());
+    // this.form.get('measureType')?.valueChanges.pipe(takeUntil(this.$destroy)).subscribe(() => this.startEditingMeasureType());
+    this.form.get('measureObjTypeId')?.valueChanges.pipe(takeUntil(this.$destroy)).subscribe(() => this.startEditingMeasureId());
     // (this.form.get('measureObjList') as FormArray).controls.forEach((measureObjGroup, objIndex) => {
     //   const measureNameControl = (measureObjGroup.get('name') as FormControl);
     //   measureNameControl?.valueChanges
@@ -310,155 +283,11 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     this.expandedSections[section] = !this.expandedSections[section];
   }
 
-  setViewMode(mode: 'ui' | 'json') {
-    this.viewMode = mode;
-  }
-
-  // -------------------------------
-  // JSON File Upload Handling
-  // -------------------------------
-  onJsonFileUpload(event: any) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e: any) => {
-      try {
-        const data = JSON.parse(e.target.result);
-        this._normalizeCountersAndKpis(data);
-        this.measurementData = data;
-        this._updateMeasurementObject();
-        // this._startUpdateLocalstorageTimerInterval();
-        this._initForm();
-        this.saveToLocalStorage();
-      } catch (err) {
-        console.error("❌ Invalid JSON file", err);
-        alert("The uploaded file is not a valid JSON.");
-      }
-    };
-    reader.readAsText(file);
-  }
-
-  // private _startUpdateLocalstorageTimerInterval(): void {
-  //   interval(1500).pipe(takeUntil(this.$destroy)).subscribe({
-  //     next: () => localStorage.setItem('hyper_config', JSON.stringify(this.measurementData))
-  //   });
-  // }
-
   onObjectMeasureTitleEditClick(id: string): void {
     this.editingMeasureObjName[id] = true;
     this.editingMeasureObjAbbreviation[id] = true;
   }
 
-  convertHyperMeasure() {
-    const data = this.measurementData;
-    // --- 1. Generate eNodeB_No_Realtime.json ---
-    const eNodeB_output = {
-      neVersion: "faraabeen_default",
-      neTypeId: "201",
-      neTypeName: "eNodeB",
-      measureObjTypeList: [{
-        measureObjTypeId: data.measureId,
-        name: data.measureType,
-        commAttributes: ["cellId"],
-        commAttributeVals: ["U8"],
-        measureObj: [] as any[],
-      },],
-    };
-
-    const allCounters = new Map();
-    const allKpis = new Map();
-
-    data.measureObjList.forEach(obj => {
-      // Map to eNodeB format
-      const measureObj = {
-        measureObjId: obj.measureObjId,
-        name: obj.name,
-        dataUpPeriodMod: "0",
-        counterList: obj.counterList.map(counter => counter.id),
-        kpiList: obj.kpiList.map((kpi: KPI) => ({
-          kpiId: kpi.kpiId,
-          kpiCounterList: kpi._usedCounters?.map(item => item._numericId).join(','),
-          formula: kpi.formula,
-          // Add optional fields if they exist
-          ...(kpi.name && { name: kpi.name }),
-          ...(kpi.indicator && { indicator: kpi.indicator }),
-        })),
-      };
-      eNodeB_output.measureObjTypeList[0].measureObj.push(measureObj);
-
-      // Collect all counters and KPIs for the properties file
-      obj.counterList.forEach(counter => {
-        if (!allCounters.has(counter.id)) {
-          allCounters.set(counter.id, counter);
-        }
-      });
-
-      obj.kpiList.forEach(kpi => {
-        if (!allKpis.has(kpi.kpiId)) {
-          allKpis.set(kpi.kpiId, kpi);
-        }
-      });
-    });
-
-
-    // --- 2. Generate counters_kpi_list.properties ---
-    let properties_lines = [];
-
-    // Add measure object names
-    properties_lines.push(`pm.measure.object.type.${data.measureId}=${data.measureType}`);
-    data.measureObjList.forEach((obj: any) => {
-      // Note: The original file had short names (e.g., RRC). We use the full name from the input JSON.
-      properties_lines.push(`pm.measure.object.${obj.measureObjId}=${obj.name}`);
-    });
-    properties_lines.push(''); // separator
-
-    // Add counters
-    allCounters.forEach(counter => {
-      properties_lines.push(`${counter.id}=${counter.name} (${counter.unit || 'number'})`);
-    });
-    properties_lines.push(''); // separator
-
-    // Add KPIs
-    allKpis.forEach(kpi => {
-      // Format KPI ID: e.g., 11001 -> K0000011001
-      const kpiKey = `K${String(kpi.kpiId).padStart(7, '0')}`;
-      const kpiUnit = kpi.indicator === 'p' ? 'percent' : 'number';
-      properties_lines.push(`${kpiKey}=${kpi.name} (${kpiUnit})`);
-    });
-
-    const eNodeBBlob = new Blob([JSON.stringify(eNodeB_output, null, 2)], { type: 'application/json' });
-    const propertiesBlob = new Blob([properties_lines.join('\n')], { type: 'text/plain' });
-
-    const eNodeBUrl = URL.createObjectURL(eNodeBBlob);
-    const propertiesUrl = URL.createObjectURL(propertiesBlob);
-
-    // Download eNodeB_No_Realtime.json
-    const eNodeBLink = document.createElement('a');
-    eNodeBLink.href = eNodeBUrl;
-    eNodeBLink.download = 'eNodeB_No_Realtime.json';
-    document.body.appendChild(eNodeBLink);
-    eNodeBLink.click();
-    document.body.removeChild(eNodeBLink);
-
-    // Download counters_kpi_list.properties
-    const propertiesLink = document.createElement('a');
-    propertiesLink.href = propertiesUrl;
-    propertiesLink.download = 'counters_kpi_list.properties';
-    document.body.appendChild(propertiesLink);
-    propertiesLink.click();
-    document.body.removeChild(propertiesLink);
-
-    // Clean up object URLs
-    setTimeout(() => {
-      URL.revokeObjectURL(eNodeBUrl);
-      URL.revokeObjectURL(propertiesUrl);
-    }, 1000);
-    // return {
-    //   eNodeB: JSON.stringify(eNodeB_output, null, 2),
-    //   properties: properties_lines.join('\n'),
-    // };
-  }
   filterMeasurementObjects() {
     const term = this.searchTerm.toLowerCase().trim();
     if (!term) {
@@ -540,9 +369,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     this._normalizeCountersAndKpis(this.measurementData);
     this._updateMeasurementObject();
   }
-  // -------------------------------
-  // CRUD operations for Counters
-  // -------------------------------
+
 
   removeCounter(measureObj: MeasureObj, index: number) {
     const counter = measureObj.counterList[index];
@@ -561,9 +388,6 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     this._updateMeasurementObject();
   }
 
-  // -------------------------------
-  // CRUD operations for KPIs
-  // -------------------------------
 
   removeKpi(measureObj: MeasureObj, index: number) {
     const kpi = measureObj.kpiList[index];
@@ -581,45 +405,33 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     this._updateMeasurementObject();
   }
 
-  copyJson() {
-    const jsonStr = JSON.stringify(this.measurementData, null, 2);
-    navigator.clipboard.writeText(jsonStr).then(() => {
-      alert("JSON copied to clipboard!");
-    }).catch(err => {
-      alert("Failed to copy JSON: " + err);
-    });
-  }
+
   // Find KPIs that reference a counter
   getKpisUsingCounter(measureObj: MeasureObj, counter: Counter): KPI[] {
-    if (!counter._numericId) return [];
-    return measureObj.kpiList.filter(kpi => kpi._usedCounters?.some(c => c._numericId === counter._numericId))
+    return this.measurService.getKpisUsingCounter(counter);
+    // if (!counter._numericId) return [];
+    // return measureObj.kpiList.filter(kpi => kpi._usedCounters?.some(c => c._numericId === counter._numericId))
   }
 
   // Find Counters referenced by a KPI (numeric IDs → counters)
   getCountersUsedByKpi(measureObj: MeasureObj, kpi: KPI): Counter[] {
     // if (!kpi.kpiCounterList) return [];
+    return this.measurService.getCountersUsedByKpi(kpi);
+    // const counterIds = kpi._usedCounters?.map(counter => counter._numericId);
 
-    const counterIds = kpi._usedCounters?.map(counter => counter._numericId);
-
-    return measureObj.counterList.filter(counter =>
-      counter._numericId ? counterIds?.includes(counter._numericId) : false
-    );
+    // return measureObj.counterList.filter(counter =>
+    //   counter._numericId ? counterIds?.includes(counter._numericId) : false
+    // );
   }
 
   getKpiCounterList(kpi: KPI): string[] {
-    if (!kpi._usedCounters) {
-      return [];
-    }
-    return kpi._usedCounters.map(counter => counter?._numericId || '') || []
+    return this.measurService.getKpiCounterList(kpi);
+    // if (!kpi._usedCounters) {
+    //   return [];
+    // }
+    // return kpi._usedCounters.map(counter => counter?._numericId || '') || []
   }
 
-
-  getKpiCounterListForExport(kpi: KPI): string {
-    if (!kpi._usedCounters) {
-      return [].join(',');
-    }
-    return (kpi._usedCounters.map(counter => counter?._numericId || '') || []).join(',')
-  }
 
   getKpiFormulaForExport(kpi: KPI): string {
     if (!kpi.formulaWithCountersId) {
@@ -628,56 +440,13 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     return kpi.formulaWithCountersId;
   }
 
-  private _generateMeasureObjId(index: number): string {
-    // index starts from 1
-    const measureObjId = `${String(8000 + index + 1)}`;
-    return measureObjId;
+  goBack() {
+    this._router.navigate(['/measure']);
   }
-
-  private _generateCounterId(index: number): string {
-    // index starts from 1
-    const counterId = `C${String(index).padStart(10, '0')}`;
-    return counterId;
-  }
-
-  private _generateKpiId(index: number): string {
-    // index starts from 1
-    const kpiId = `${String(11000 + index).toString()}`;
-    return kpiId;
-  }
-
 
   private _updateMeasurementObject() {
     this.saveToLocalStorage();
     this.filterMeasurementObjects(); // Update filtered view
-  }
-
-  validateFormula(formula: string, availableCounters: Counter[]): string[] {
-    if (!formula || !formula.trim()) {
-      return ["Formula is empty."];
-    }
-    const errors = [];
-    const scope = availableCounters.reduce((acc, c) => {
-      acc[c.name] = 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const result = this.formulaParser.parseFormula(formula, scope);
-    const validationMathjs = result.validationMathjs;
-    const validationCustom = result.validationCustom;
-    if (validationCustom.error) {
-      errors.push(validationCustom.error)
-    }
-    if (validationMathjs.error) {
-      errors.push(validationMathjs.error)
-    }
-    const counterNames = availableCounters.map(c => c.name);
-    for (const token of result.tokens.filter(t => t.type === 'identifier').map(t => t.token)) {
-      if (!counterNames.includes(token)) {
-        errors.push(`Invalid token "${token}" in formula`);
-      }
-    }
-    return errors;
   }
 
   validateCounterName(counter: Counter): string[] {
@@ -685,7 +454,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     if (!counter.name || !counter.name.trim()) {
       errors.push("Counter name is required.");
     }
-    const existingNames = this.measurementData.measureObjList.flatMap(m => m.counterList.filter(c => c.id !== counter.id).map(c => c.name));
+    const existingNames = this.allCounters.filter(c => c.id !== counter.id).map(c => c.name);
     if (existingNames.some(existingName => existingName === counter.name)) {
       errors.push(`${counter.name} is already used by another counter. Counter names must be unique.`);
     }
@@ -713,7 +482,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     if (!kpi.name || !kpi.name.trim()) {
       errors.push("KPI name is required.");
     }
-    const existingNames = this.measurementData.measureObjList.flatMap(m => m.kpiList.filter(k => k.kpiId !== kpi.kpiId).map(k => k.name));
+    const existingNames = this.allKpis.filter(k => k.kpiId !== kpi.kpiId).map(k => k.name);
     if (existingNames.some(existingName => existingName === kpi.name)) {
       errors.push(`${kpi.name} is already used by another KPI. KPI names must be unique.`);
     }
@@ -733,17 +502,27 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     return errors;
   }
 
-  private _normalizeCountersAndKpis(measureObjData: measurementData) {
-    let counterIdSeq = 1;
-    let kpiIdSeq = 1;
+  private _initializeVariables(): void {
+
+    this.allCounters = this.measurService.getAllCounters();
+    this.allKpis = this.measurService.getAllKpis();
+    this.allMeasureObjs = this.measurService.getMeasureObject()?.measureObjTypeList.flatMap(m => m.measureObjList)!
+    this.allCounters.forEach(c => {
+      this.getKpisUsingCounterObject[c.id] = this.measurService.getKpisUsingCounter(c);
+    });
+    this.allKpis.forEach(k => {
+      this.getCountersUsedByKpiObject[k.kpiId] = this.measurService.getCountersUsedByKpi(k);
+    });
+  }
+
+  private _normalizeCountersAndKpis(measureObjData: MeasureObjType) {
     measureObjData.measureObjList.forEach((measureObj, measureIndex) => {
-      measureObj.measureObjId = this._generateMeasureObjId(measureIndex);
+      // measureObj.measureObjId = this.measurService.getMeasureObjId(measureObj, this.measurService.getMeasureObject()?.measureObjTypeList!)!;
       measureObj._show = true;
       // 1. Assign counter IDs
       measureObj.counterList.forEach((counter, i) => {
-        counter.id = this._generateCounterId(counterIdSeq);
-        counter._numericId = counterIdSeq.toString();
-        counterIdSeq++;
+        // counter.id = this._generateCounterId(counterIdSeq);
+        counter._numericId = `${parseInt(counter.id.slice(1), 10)}`;
         counter._show = true;
       });
 
@@ -756,13 +535,12 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       // 2. Update KPI references
       measureObj.kpiList.forEach(kpi => {
         const usedCounters = this.extractCounterNamesFromFormula(kpi.formula, measureObj.counterList);
-        kpi.kpiId = this._generateKpiId(kpiIdSeq);
-        kpiIdSeq++;
+        // kpi.kpiId = this._generateKpiId(kpiIdSeq);
         kpi._show = true;
 
         // Normalize formula → wrap numeric IDs with $…
         if (kpi.formula) {
-          kpi.formulaWithCountersId = this._convertFormula(kpi.formula, measureObj)
+          kpi.formulaWithCountersId = this.measurService.convertFormula(kpi.formula)
         }
 
         kpi._usedCounters = usedCounters;
@@ -799,7 +577,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     const errors: string[] = [];
 
     // Collect valid counter numeric IDs
-    const validIds = measureObj.counterList.map(c => c._numericId);
+    const validIds = this.allCounters.map(c => `${parseInt(c.id.slice(1), 10)}`);
 
     // --- Check kpiCounterList
     const kpiCounterIds = this.getKpiCounterList(kpi);
@@ -833,7 +611,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       if (kpiErrors1 && kpiErrors1.length > 0) {
         errors.push(...kpiErrors1.map(err => `KPI ${kpi.kpiId} – ${kpi.name}: ${err}`));
       }
-      const kpiErrors2 = this.validateFormula(kpi.formula, kpi._usedCounters);
+      const kpiErrors2 = this.measurService.validateFormula(kpi.formula, this.allCounters);
       if (kpiErrors2 && kpiErrors2.length > 0) {
         errors.push(...kpiErrors2.map(err => `KPI ${kpi.kpiId} – ${kpi.name}: ${err}`));
       }
@@ -862,7 +640,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     return errors;
   }
 
-  getAllErrors(): string[] {
+  getAllErrors = computed<string[]>(() => {
     let allErrors: string[] = [];
     this.measurementData.measureObjList.forEach(measureObj => {
       const counterErrors = this.getAllCountersErrors(measureObj);
@@ -870,15 +648,12 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       allErrors.push(...counterErrors, ...kpiErrors);
     });
     return allErrors;
-  }
+  })
 
   startEditingCounterName(counter: Counter) {
     this.editingCounterName[counter.id] = true;
   }
 
-  startEditingMeasureType(): void {
-    this.editingMeasureType = true;
-  }
 
   startEditingMeasureId(): void {
     this.editingMeasureId = true;
@@ -946,7 +721,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     const newMeasurObj: MeasureObj = {
       name: this.newMeasureObjForm.get('name')?.value,
       abbreviation: this.newMeasureObjForm.get('abbreviation')?.value,
-      measureObjId: '',
+      measureObjId: this.measurService.getNewMeasureObjId()!,
       counterList: [],
       kpiList: [],
       counterSearchTerm: '',
@@ -981,7 +756,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       name: this.newCounterForm.get('name')?.value,
       unit: this.newCounterForm.get('unit')?.value,
       cumulative: this.newCounterForm.get('cumulative')?.value,
-      id: '',
+      id: this.measurService.getNewCounterId()!,
       _show: true,
     };
     // Validate name uniqueness
@@ -1012,7 +787,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       formula: this.newKpiForm.get('formula')?.value,
       indicator: this.newKpiForm.get('indicator')?.value,
       unit: this.newKpiForm.get('unit')?.value,
-      kpiId: '0',
+      kpiId: this.measurService.getNewKpiId()!,
       title: this.newKpiForm.get('title')?.value,
       _usedCounters: [],
       _show: true,
@@ -1030,7 +805,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     //   return;
     // }
     // Validate formula
-    const formulaErrors = this.validateFormula(newKpi.formula, measureObj.counterList);
+    const formulaErrors = this.measurService.validateFormula(newKpi.formula, this.allCounters);
     if (formulaErrors.length > 0) {
       alert("❌ Formula errors:\n" + formulaErrors.join('\n'));
       return;
@@ -1061,30 +836,10 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     this.newCounterForm = new FormGroup({});
   }
 
-  confirmMeasureTypeChange(): boolean | void {
-    const newName = this.form.get('measureType')?.value;
-    if (newName.trim() === this.measurementData.measureType) {
-      this.cancelMeasureTypeEdit();
-      return;
-    }
-
-    if (!newName) {
-      alert("❌ Invalid Measurment Type name:\n");
-      return;
-    }
-
-    const oldName = this.measurementData.measureType;
-    // Apply change to counter after updating KPIs
-    this.measurementData.measureType = newName;
-    this._normalizeCountersAndKpis(this.measurementData);
-    this._updateMeasurementObject();
-    this.editingMeasureType = false;
-    return true;
-  }
 
   confirmMeasureIdChange(): boolean | void {
-    const newName = this.form.get('measureId')?.value;
-    if (newName.trim() === this.measurementData.measureId) {
+    const newName = this.form.get('measureObjTypeId')?.value;
+    if (newName.trim() === this.measurementData.measureObjTypeId) {
       this.cancelMeasureIdEdit();
       return;
     }
@@ -1094,9 +849,9 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const oldName = this.measurementData.measureId;
+    const oldName = this.measurementData.measureObjTypeId;
     // Apply change to counter after updating KPIs
-    this.measurementData.measureId = newName;
+    this.measurementData.measureObjTypeId = newName;
     this._normalizeCountersAndKpis(this.measurementData);
     this._updateMeasurementObject();
     this.editingMeasureId = false;
@@ -1201,7 +956,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const formulaErrors = this.validateFormula(newFormula, measureObj.counterList);
+    const formulaErrors = this.measurService.validateFormula(newFormula, this.allCounters);
     if (formulaErrors.length > 0) {
       alert("❌ Formula errors:\n" + formulaErrors.join('\n'));
       return;
@@ -1278,18 +1033,11 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     this.editingMeasureObjAbbreviation[measureObj.measureObjId] = false;
   }
 
-  cancelMeasureTypeEdit(): void {
-    const nameControl = this.form.get('measureType');
-    if (nameControl && nameControl.value !== this.measurementData.measureType) {
-      nameControl.setValue(this.measurementData.measureType, { emitEvent: false });
-    }
-    this.editingMeasureType = false;
-  }
 
   cancelMeasureIdEdit(): void {
-    const nameControl = this.form.get('measureId');
-    if (nameControl && nameControl.value !== this.measurementData.measureId) {
-      nameControl.setValue(this.measurementData.measureId, { emitEvent: false });
+    const nameControl = this.form.get('measureObjTypeId');
+    if (nameControl && nameControl.value !== this.measurementData.measureObjTypeId) {
+      nameControl.setValue(this.measurementData.measureObjTypeId, { emitEvent: false });
     }
     this.editingMeasureId = false;
   }
@@ -1321,351 +1069,37 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
     this.editingKpiTitle[kpi.kpiId] = false;
   }
 
-  getCounterLength(): number {
+  getCounterLength = computed<number>(() => {
     return this.measurementData.measureObjList.reduce((sum, mo) => sum + mo.counterList.length, 0);
-  }
 
-  getKpiLength(): number {
+  })
+
+  getKpiLength = computed<number>(() => {
     return this.measurementData.measureObjList.reduce((sum, mo) => sum + mo.kpiList.length, 0);
-  }
+  })
 
-  private _exportToProperties() {
-    let propertiesContent = '';
-    let counterIndex = 1;
-    let kpiIndex = 1;
 
-    // Add measure type
-    propertiesContent += `pm.measure.object.type.${this.neTypeId}${this.measurementData.measureId}=${this.measurementData.measureType}\n`;
 
-    // Add all measure object definitions first
-    this.measurementData.measureObjList.forEach(measureObj => {
-      propertiesContent += `pm.measure.object.${this.neTypeId}${this.measurementData.measureId}${measureObj.measureObjId}=${measureObj.abbreviation.toUpperCase()}\n`;
-    });
 
-    // Process counters
-    this.measurementData.measureObjList.forEach(measureObj => {
-      measureObj.counterList.forEach(counter => {
-        const counterId = this._generateCounterId(counterIndex);
-        propertiesContent += `${counterId}=${counter.name} (${counter.unit})\n`;
-        counterIndex++;
-      });
-    });
-
-    // Process KPIs
-    this.measurementData.measureObjList.forEach(measureObj => {
-      measureObj.kpiList.forEach(kpi => {
-        const kpiId = `K${this._generateKpiId(kpiIndex).padStart(10, '0')}`;
-        propertiesContent += `${kpiId}=${kpi.name} (${kpi.unit})\n`;
-        kpiIndex++;
-      });
-    });
-
-    return propertiesContent;
-  }
-
-  downloadPropertiesFile(filename = 'counters_kpi_list.properties') {
-    const propertiesContent = this._exportToProperties();
-
-    // Create blob and download
-    const blob = new Blob([propertiesContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  private _convertFormula(formula: string, measureObj: MeasureObj) {
-    if (formula) {
-      const nameToNumericId: Record<string, string> = {};
-      measureObj.counterList.forEach(c => {
-        nameToNumericId[c.name] = c._numericId!;
-      });
-      let normalized = formula.replace(/\s+/g, ''); // remove all whitespace (spaces, tabs, newlines)
-      Object.entries(nameToNumericId).forEach(([name, numId]) => {
-        const regex = new RegExp(`\\b${name}\\b`, "g");
-        normalized = normalized.replace(regex, `$${numId}$`);
-      });
-      return normalized;
-    }
-    return undefined;
-  }
-
-  private _generateENodeB() {
-    const eNodeBStructure = {
-      "neVersion": this.neVersion,
-      "neTypeId": this.neTypeId,
-      "neTypeName": this.neTypeName,
-      "measureObjTypeList": [
-        {
-          "measureObjTypeId": `${this.neTypeId}${this.measurementData.measureId}`,
-          "name": this.measurementData.measureType,
-          "commAttributes": ["cellId"],
-          "commAttributeVals": ["U8"],
-          "measureObj": []
-        }
-      ] as any[]
-    };
-
-    this.measurementData.measureObjList.forEach(measureObj => {
-      const measureObjStructure = {
-        "measureObjId": `${this.neTypeId}${this.measurementData.measureId}${measureObj.measureObjId}`,
-        "name": measureObj.name.trim(),
-        "dataUpPeriodMod": "0",
-        "counterList": [] as string[],
-        "kpiList": [] as any[]
-      } as any;
-
-      measureObj.counterList.forEach(counter => {
-        measureObjStructure.counterList.push(counter.id);
-      });
-
-      measureObj.kpiList.forEach(kpi => {
-        const kpiId = kpi.kpiId
-        if (kpiId) {
-          const kpiNumId = parseInt(kpi.kpiId);
-          const convertedFormula = this._convertFormula(kpi.formula, measureObj);
-          const kpiCounterList = this.getKpiCounterList(kpi).join(',');
-
-          measureObjStructure.kpiList.push({
-            "kpiId": kpiNumId,
-            "kpiCounterList": kpiCounterList,
-            "formula": convertedFormula
-          });
-        }
-      });
-
-      eNodeBStructure.measureObjTypeList[0].measureObj.push(measureObjStructure);
-    });
-    return eNodeBStructure;
-  }
-
-  downloadENodeB() {
-    const blob = new Blob([JSON.stringify(this._generateENodeB(), null, 2)], {
-      type: 'application/json'
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'eNodeB_No_Realtime.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  restoreFromLocalStorage(): void {
-    const savedJson = localStorage.getItem('hyper_config');
-    if (savedJson) {
-      this.measurementData = JSON.parse(savedJson);
-      this.showRestoreBanner = false;
-      this._normalizeCountersAndKpis(this.measurementData);
-      // this._startUpdateLocalstorageTimerInterval();
-      this._initForm();
-    }
-  }
 
   clearLocalStorage(): void {
-    localStorage.removeItem('hyper_config');
+    this.measurService.removeTypeObjFromStorageById(this.measureObjTypeId);
     // this.measurementData = null;
-    this.showRestoreBanner = false;
+    // this.showRestoreBanner = false;
   }
 
   saveToLocalStorage(): void {
-    localStorage.setItem('hyper_config', JSON.stringify(this.form.getRawValue()));
-    this.showRestoreBanner = false;
-  }
-
-  downloadHyperConfigFiles() {
-    const blob = new Blob([JSON.stringify(this.form.getRawValue(), null, 2)], {
-      type: 'application/json'
+    this.routeService.isLoadingRoute.set(true);
+    requestIdleCallback(() => {
+      this.measurService.addTypeObjIntoLocalStorageById(this.measureObjTypeId, this.form.getRawValue());
+      this._initializeVariables();
+      this.routeService.isLoadingRoute.set(false);
     });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'hyper-counter-kpi.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  private _convertHyperCounterKpiToKpiSetting() {
-    // Initialize the result object
-    const kpiSetting = {} as any;
-
-    // Process each measureObj in the hyperCounterKpi
-    this.form.getRawValue().measureObjList.forEach((measureObj: MeasureObj) => {
-      const abbreviation = measureObj.abbreviation.replace('-', '');
-      const targetKey = abbreviation.toLocaleLowerCase();
-
-      if (targetKey) {
-        // Initialize array for this category if it doesn't exist
-        kpiSetting[targetKey] = [];
-
-        // Process each counter in the counterList
-        measureObj.counterList.forEach(counter => {
-          kpiSetting[targetKey].push({
-            counter_name: counter.name,
-            cumulative: counter.cumulative
-          });
-        });
-      }
-    });
-
-    return kpiSetting;
-  }
-
-  downloadKpiSettingFile() {
-    const blob = new Blob([JSON.stringify(this._convertHyperCounterKpiToKpiSetting(), null, 2)], {
-      type: 'application/json'
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'kpi_setting.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  private _convertHyperCounterKpiToDefaultFormulas() {
-    const defaultFormulas = [] as any[];
-    let idCounter = 1;
-
-    // Sub-category mapping from abbreviations
-    // const subCategoryMapping = {
-    //   'RRC': 'RRC',
-    //   'DL': 'DL',
-    //   'UL': 'UL',
-    //   'E-RAB': 'E-RAB',
-    //   'MAC': 'MAC',
-    //   'S1': 'S1AP' // Note: S1 maps to S1AP in the default format
-    // };
-
-    // Helper function to parse formula string and convert to array format
-    function parseFormulaToArray(formulaString: string): string[] {
-      let normalized = formulaString.replace(/\s+/g, ''); // remove all whitespace (spaces, tabs, newlines)
-      // Do not remove parentheses from the start/end
-      // Split by operators and parentheses, keeping the delimiters
-      const tokens = normalized.split(/(\+|\-|\*|\/|\(|\))/g).filter(token => token.trim() !== '');
-
-      // Clean up tokens and return array
-      return tokens.map(token => token.trim());
-    }
-
-    // Helper function to determine indicator based on KPI name/title
-    // function getIndicator(name: string, title: string): string {
-    //   const lowerName = name.toLowerCase();
-    //   const lowerTitle = title.toLowerCase();
-
-    //   // Negative indicators (failure rates, discard rates, etc.)
-    //   if (lowerName.includes('failure') || lowerName.includes('discard') ||
-    //     lowerTitle.includes('failure') || lowerTitle.includes('discard') ||
-    //     lowerName.includes('reject')) {
-    //     return 'N';
-    //   }
-
-    //   // Default to positive indicator
-    //   return 'P';
-    // }
-
-    // Process each measureObj in the hyperCounterKpi
-    this.form.getRawValue().measureObjList.forEach((measureObj: MeasureObj) => {
-      const abbreviation = measureObj.abbreviation;
-      const subCategory = abbreviation.toUpperCase();
-
-      if (measureObj.kpiList && measureObj.kpiList.length > 0) {
-        measureObj.kpiList.forEach(kpi => {
-          const formulaArray = parseFormulaToArray(kpi.formula);
-          const indicator = kpi.indicator.toUpperCase();
-
-          const defaultKpiFormula = {
-            id: idCounter.toString(),
-            name: kpi.name,
-            title: kpi.title,
-            formula: formulaArray,
-            sub_category: subCategory,
-            type: kpi.unit,
-            unit: kpi.unit === "percent" ? "%" : '',
-            switch_on: true,
-            indicator: indicator
-          };
-
-          defaultFormulas.push(defaultKpiFormula);
-          idCounter++;
-        });
-      }
-    });
-
-    return defaultFormulas;
-  }
-
-  downloadDefaultFormulaFile() {
-    const blob = new Blob([JSON.stringify(this._convertHyperCounterKpiToDefaultFormulas(), null, 2)], {
-      type: 'application/json'
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'default_kpi_formulas.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  downloadOssE2eTestingFile() {
-    const obj: any = {};
-    this.form.getRawValue().measureObjList.forEach((measureObj: MeasureObj) => {
-      obj[measureObj.name] = {
-        counters: measureObj.counterList.map(c => ({ name: c.name, isActive: false })),
-        kpis: measureObj.kpiList.map(k => ({ name: k.name, isActive: false })),
-      }
-    });
-    obj["timeMode"] = [
-      {
-        "name": "Continuous",
-        "isActive": false,
-        "options": null
-      },
-      {
-        "name": "Section Time",
-        "isActive": true,
-        "options": {
-          "startTime": "12:34",
-          "endTime": "13:30"
-        }
-      }
-    ];
-    obj["dateRange"] = [
-      {
-        "name": "Custom",
-        "isActivce": true,
-        "startDate": "2025-10-01",
-        "endDate": "2025-10-13"
-      }
-    ];
-    const blob = new Blob([JSON.stringify(obj, null, 2)], {
-      type: 'application/json'
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'oss-config.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // this.showRestoreBanner = false;
   }
 
   openFormulaFullscreenEdit(measureObj: MeasureObj | null, formControl: AbstractControl | null) {
-    this.availableCounters = measureObj?.counterList.map(c => ({ name: c.name, id: c.id, displayName: c.name || '' })) || [];
+    this.availableCounters = this.allCounters.map(c => ({ name: c.name, id: c.id, displayName: c.name || '' })) || [];
     this.initialFormula = formControl?.value || '';
     this.showFullscreenFormulaEditor = true;
     this._kpiFormulaEditFc = formControl;
@@ -1688,8 +1122,13 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
 
   onConfirmCounterTransfer() {
     if (!confirm("Are you sure you want to transfer this counter?")) return;
+    const measureObject = this.measurService.getMeasureObject();
+    if (!measureObject) {
+      return;
+    }
     const index = this.selectedMeasureObjForTransfer?.counterList.findIndex(c => c.id === this.selectedCounterToTransfer?.id);
-    const targetMeasurObj = this.measurementData.measureObjList.find(mo => mo.measureObjId === this.selectedTargetMeasureObjId);
+    const targetMeasurObj = this.allMeasureObjs.find(mo => mo.measureObjId === this.selectedTargetMeasureObjId);
+
     if (typeof (index) === 'number' && this.selectedMeasureObjForTransfer && this.selectedCounterToTransfer && targetMeasurObj) {
       this.selectedMeasureObjForTransfer?.counterList.splice(index, 1);
       const measureObjArray = this.form.get('measureObjList') as FormArray;
@@ -1701,10 +1140,13 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
         name: this.selectedCounterToTransfer?.name,
         unit: this.selectedCounterToTransfer.unit,
         cumulative: this.selectedCounterToTransfer.cumulative,
-        id: '',
+        id: this.selectedCounterToTransfer.id,
         _show: true,
       };
       targetMeasurObj.counterList.push(newCounter);
+      const index1 = measureObject.measureObjTypeList.findIndex(item => item.measureObjList.some(mo => mo.measureObjId === targetMeasurObj.measureObjId));
+      const index2 = measureObject.measureObjTypeList[index1].measureObjList.findIndex(item => item.measureObjId === targetMeasurObj.measureObjId);
+      measureObject.measureObjTypeList[index1].measureObjList[index2] = targetMeasurObj;
       this._normalizeCountersAndKpis(this.measurementData);
       this.$destroy.next(null); // stop any ongoing subscriptions
       this.$destroy.complete();
@@ -1715,6 +1157,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       this._updateMeasurementObject();
       this.closeFormulaFullscreenTransferCounter();
       this.showSuccessMessage = true;
+      this.measurService.addTypeObjIntoLocalStorageById(measureObject.measureObjTypeList[index1].measureObjTypeId, measureObject.measureObjTypeList[index1]);
     }
   }
 
@@ -1740,8 +1183,12 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
 
   onConfirmKpiTransfer() {
     if (!confirm("Are you sure you want to transfer this kpi?")) return;
+    const measureObject = this.measurService.getMeasureObject();
+    if (!measureObject) {
+      return;
+    }
     const index = this.selectedMeasureObjForTransfer?.kpiList.findIndex(k => k.kpiId === this.selectedKpiToTransfer?.kpiId);
-    const targetMeasurObj = this.measurementData.measureObjList.find(mo => mo.measureObjId === this.selectedTargetMeasureObjId);
+    const targetMeasurObj = this.allMeasureObjs.find(mo => mo.measureObjId === this.selectedTargetMeasureObjId);
 
     if (typeof (index) === 'number' && this.selectedMeasureObjForTransfer && this.selectedKpiToTransfer && targetMeasurObj) {
       this.selectedMeasureObjForTransfer?.kpiList.splice(index, 1);
@@ -1755,12 +1202,15 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
         formula: this.selectedKpiToTransfer.formula,
         indicator: this.selectedKpiToTransfer.indicator,
         unit: this.selectedKpiToTransfer.unit,
-        kpiId: '0',
+        kpiId: this.selectedKpiToTransfer.kpiId,
         title: this.selectedKpiToTransfer.title,
         _usedCounters: [],
         _show: true,
       };
       targetMeasurObj.kpiList.push(newKpi);
+      const index1 = measureObject.measureObjTypeList.findIndex(item => item.measureObjList.some(mo => mo.measureObjId === targetMeasurObj.measureObjId));
+      const index2 = measureObject.measureObjTypeList[index1].measureObjList.findIndex(item => item.measureObjId === targetMeasurObj.measureObjId);
+      measureObject.measureObjTypeList[index1].measureObjList[index2] = targetMeasurObj;
       this._normalizeCountersAndKpis(this.measurementData);
       this.$destroy.next(null); // stop any ongoing subscriptions
       this.$destroy.complete();
@@ -1769,6 +1219,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       this._updateMeasurementObject();
       this.closeFormulaFullscreenTransferKpi();
       this.showSuccessMessage = true;
+      this.measurService.addTypeObjIntoLocalStorageById(measureObject.measureObjTypeList[index1].measureObjTypeId, measureObject.measureObjTypeList[index1]);
     }
   }
 
