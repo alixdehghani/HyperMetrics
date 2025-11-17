@@ -10,12 +10,12 @@ import { UserNavigationPanel } from '../../shared/formula-input/navigation-panel
         RouterModule,
         UserNavigationPanel
     ],
-    selector: 'measure-layout',
-    templateUrl: 'measure-layout.html',
-    styleUrl: 'measure-layout.scss',
+    selector: 'config-layout',
+    templateUrl: 'config-layout.html',
+    styleUrl: 'config-layout.scss',
 })
 
-export class MeasureLayout {    
+export class ConfigLayout {    
     routeService = inject(RouteService);
     navItems = signal([
         {

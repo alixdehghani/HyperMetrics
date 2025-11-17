@@ -441,7 +441,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   }
 
   goBack() {
-    this._router.navigate(['/measure']);
+    this._router.navigate(['/measurement-type-config']);
   }
 
   private _updateMeasurementObject() {

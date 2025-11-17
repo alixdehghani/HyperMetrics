@@ -1,28 +1,21 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { RouteService } from '../../core/services/route/route.service';
-import { UserNavigationPanel } from '../../shared/formula-input/navigation-panel/navigation-panel';
 
 @Component({
     imports: [
         CommonModule,
-        RouterModule,
-        UserNavigationPanel
+        RouterModule
     ],
-    selector: 'measure-layout',
-    templateUrl: 'measure-layout.html',
-    styleUrl: 'measure-layout.scss',
+    selector: 'home',
+    templateUrl: 'home.html',
+    styleUrl: 'home.scss',
 })
 
-export class MeasureLayout {    
+export class Home implements OnInit {
     routeService = inject(RouteService);
-    navItems = signal([
-        {
-            name: 'Home',
-            url: '/home',
-            image: 'house-fill.png'
-        },
+    projects = signal([
         {
             name: 'Hyper Measure',
             url: '/measurement-type-config',
@@ -34,4 +27,9 @@ export class MeasureLayout {
             image: 'config.png'
         }
     ])
+    constructor() { }
+
+    ngOnInit(): void {
+
+    }
 }
