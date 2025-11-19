@@ -1,0 +1,218 @@
+{
+    "neVersion": "faraabeen_default_1.0.0",
+    "neTypeId": "201",
+    "neTypeName": "eNodeB",
+    "configObjTypeList": [
+        {
+            "configType": "sib",
+            "mmlCommandNamePrefix": "sib",
+            "configTypeId": "301",
+            "configObjList": [
+                {
+                    "configObjId": "3001",
+                    "dataName": "sib1",
+                    "title": "SIB1 Configuration",
+                    "parameterName": "System Information Block Message Type 1 (SIB 1)",
+                    "abbreviation": "sib1",
+                    "mmlCommandNamePosfix": "Sib1",
+                    "className": "mo",
+                    "module": "L3",
+                    "operationTypes": [
+                        {
+                            "operationName": "LST",
+                            "msgId": "5008",
+                            "operationCode": "40",
+                            "operationType": "LST",
+                            "title": "LIST",
+                            "isDangerous": false
+                        },
+                        {
+                            "operationName": "MOD",
+                            "msgId": "6008",
+                            "operationCode": "2",
+                            "operationType": "ALT",
+                            "title": "MODIFY",
+                            "isDangerous": false
+                        },
+                        {
+                            "operationName": "DSP",
+                            "msgId": "7008",
+                            "operationCode": "16",
+                            "operationType": "DSP",
+                            "title": "DISPLAY",
+                            "isDangerous": false
+                        }
+                    ],
+                    "showInOSS": true,
+                    "showInUI": true,
+                    "showInNavMenue": true,
+                    "params": [
+                        {
+                            "id": "2",
+                            "supoortedOperations": [
+                                "MOD"
+                            ],
+                            "dataName": "intra_freq_reselection",
+                            "title": "Intra Frequency Reselection",
+                            "parameterName": "Intra Freq Reselection",
+                            "abbreviation": "IntraFreqReselction",
+                            "name": "intra_freq_reselection",
+                            "unit": null,
+                            "defaultValue": "",
+                            "type": "OctetString",
+                            "validation": null,
+                            "uiValidation": null,
+                            "filter": [
+                                {
+                                    "text": "Allowed",
+                                    "value": "Allowed"
+                                },
+                                {
+                                    "text": "notAllowed",
+                                    "value": "notAllowed"
+                                }
+                            ],
+                            "modetype": "select",
+                            "showOn": null,
+                            "isEditable": true,
+                            "showInWizard": true,
+                            "showInOSS": true,
+                            "showInUI": true,
+                            "isPrimaryKey": false,
+                            "required": false,
+                            "isEnabled": true
+                        },
+                        {
+                            "id": "3",
+                            "supoortedOperations": [
+                                "MOD"
+                            ],
+                            "parameterName": "Minimum Q Rx Level value",
+                            "abbreviation": "qRxLevMin",
+                            "name": "q_rx_lev_min",
+                            "title": "Minimum Q Rx Level value",
+                            "isPrimaryKey": false,
+                            "required": false,
+                            "isEnabled": true,
+                            "unit": null,
+                            "defaultValue": "",
+                            "type": "Integer",
+                            "validation": "-140_-22",
+                            "uiValidation": "-140_-22",
+                            "filter": [],
+                            "modeType": "input",
+                            "showOn": null,
+                            "dataName": "q_rx_lev_min",
+                            "show": true,
+                            "isEditable": true,
+                            "showInWizard": true
+                        }
+                    ],
+                    "configObjList": [
+                        {
+                            "configObjId": "3002",
+                            "dataName": "sched_info",
+                            "title": "SIB1 Configuration",
+                            "parameterName": "Scheduling Information",
+                            "abbreviation": "schedInfo",
+                            "mmlCommandNamePosfix": "Sib1ShcedulingInfo",
+                            "className": "mo",
+                            "module": "L3",
+                            "operationTypes": [
+                                {
+                                    "operationName": "LST",
+                                    "msgId": "5008",
+                                    "operationCode": "40",
+                                    "operationType": "LST",
+                                    "title": "LIST",
+                                    "isDangerous": false
+                                },
+                                {
+                                    "operationName": "MOD",
+                                    "msgId": "6008",
+                                    "operationCode": "2",
+                                    "operationType": "ALT",
+                                    "title": "MODIFY",
+                                    "isDangerous": false
+                                },
+                                {
+                                    "operationName": "DSP",
+                                    "msgId": "7008",
+                                    "operationCode": "16",
+                                    "operationType": "DSP",
+                                    "title": "DISPLAY",
+                                    "isDangerous": false
+                                }
+                            ],
+                            "showInOSS": true,
+                            "showInUI": true,
+                            "showInNavMenue": true,
+                            "params": [
+                                {
+                                    "id": "2",
+                                    "supoortedOperations": [
+                                        "MOD"
+                                    ],
+                                    "dataName": "intra_freq_reselection",
+                                    "title": "Intra Frequency Reselection",
+                                    "parameterName": "Intra Freq Reselection",
+                                    "abbreviation": "IntraFreqReselction",
+                                    "name": "intra_freq_reselection",
+                                    "unit": null,
+                                    "defaultValue": "",
+                                    "type": "OctetString",
+                                    "validation": null,
+                                    "uiValidation": null,
+                                    "filter": [
+                                        {
+                                            "text": "Allowed",
+                                            "value": "Allowed"
+                                        },
+                                        {
+                                            "text": "notAllowed",
+                                            "value": "notAllowed"
+                                        }
+                                    ],
+                                    "modetype": "select",
+                                    "showOn": null,
+                                    "isEditable": true,
+                                    "showInWizard": true,
+                                    "showInOSS": true,
+                                    "showInUI": true,
+                                    "isPrimaryKey": false,
+                                    "required": false,
+                                    "isEnabled": true
+                                },
+                                {
+                                    "id": "3",
+                                    "supoortedOperations": [
+                                        "MOD"
+                                    ],
+                                    "parameterName": "Minimum Q Rx Level value",
+                                    "abbreviation": "qRxLevMin",
+                                    "name": "q_rx_lev_min",
+                                    "title": "Minimum Q Rx Level value",
+                                    "isPrimaryKey": false,
+                                    "required": false,
+                                    "isEnabled": true,
+                                    "unit": null,
+                                    "defaultValue": "",
+                                    "type": "Integer",
+                                    "validation": "-140_-22",
+                                    "uiValidation": "-140_-22",
+                                    "filter": [],
+                                    "modeType": "input",
+                                    "showOn": null,
+                                    "dataName": "q_rx_lev_min",
+                                    "show": true,
+                                    "isEditable": true,
+                                    "showInWizard": true
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
