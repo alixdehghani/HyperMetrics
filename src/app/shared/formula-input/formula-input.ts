@@ -1,5 +1,5 @@
 // formula-input.component.ts
-import { CommonModule } from '@angular/common';
+
 import { Component, ElementRef, EventEmitter, HostListener, inject, Input, Output, Type, ViewChild } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { FormulaParserService } from '../../core/helper/formula-helper';
@@ -19,10 +19,9 @@ interface FormulaToken {
 }
 @Component({
     imports: [
-        CommonModule,
-        FormsModule,
-        ReactiveFormsModule
-    ],
+    FormsModule,
+    ReactiveFormsModule
+],
     selector: 'math-formula-autocomplete',
     templateUrl: './formula-input.html',
 })

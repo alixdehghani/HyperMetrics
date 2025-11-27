@@ -1,6 +1,6 @@
 // components/modals/edit-header-modal/edit-header-modal.component.ts
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Parameter } from '../enodeb-config.model';
 import { ENodeBTreeService } from '../enodeb-tree.service';
@@ -8,7 +8,7 @@ import { ENodeBTreeService } from '../enodeb-tree.service';
 
 @Component({
   selector: 'app-edit-conf-obj-param-modal',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [ReactiveFormsModule],
   templateUrl: 'edit-conf-obj-param-modal.html'
 })
 export class EditConfObjParamModalComponent implements OnInit {

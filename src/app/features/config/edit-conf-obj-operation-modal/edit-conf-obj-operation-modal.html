@@ -29,10 +29,12 @@
             <input id="operationName" type="text" formControlName="operationName"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:bg-gray-100"
               [class.border-red-500]="confObjOperationForm.get('operationName')?.invalid && confObjOperationForm.get('operationName')?.touched">
-            <p *ngIf="confObjOperationForm.get('operationName')?.invalid && confObjOperationForm.get('operationName')?.touched"
-              class="mt-1 text-sm text-red-600">
-              Operation Name is required
-            </p>
+            @if (confObjOperationForm.get('operationName')?.invalid && confObjOperationForm.get('operationName')?.touched) {
+              <p
+                class="mt-1 text-sm text-red-600">
+                Operation Name is required
+              </p>
+            }
           </div>
 
           <!-- Operation Type -->
@@ -43,10 +45,12 @@
             <input id="operationType" type="text" formControlName="operationType"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:bg-gray-100"
               [class.border-red-500]="confObjOperationForm.get('operationType')?.invalid && confObjOperationForm.get('operationType')?.touched">
-            <p *ngIf="confObjOperationForm.get('operationType')?.invalid && confObjOperationForm.get('operationType')?.touched"
-              class="mt-1 text-sm text-red-600">
-              Operation Type is required
-            </p>
+            @if (confObjOperationForm.get('operationType')?.invalid && confObjOperationForm.get('operationType')?.touched) {
+              <p
+                class="mt-1 text-sm text-red-600">
+                Operation Type is required
+              </p>
+            }
           </div>
 
           <!-- title -->
@@ -57,10 +61,12 @@
             <input id="title" type="text" formControlName="title"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:bg-gray-100"
               [class.border-red-500]="confObjOperationForm.get('title')?.invalid && confObjOperationForm.get('title')?.touched">
-            <p *ngIf="confObjOperationForm.get('title')?.invalid && confObjOperationForm.get('title')?.touched"
-              class="mt-1 text-sm text-red-600">
-              Title is required
-            </p>
+            @if (confObjOperationForm.get('title')?.invalid && confObjOperationForm.get('title')?.touched) {
+              <p
+                class="mt-1 text-sm text-red-600">
+                Title is required
+              </p>
+            }
           </div>
 
           <!-- msgId -->
@@ -71,11 +77,13 @@
             <input id="msgId" type="number" formControlName="msgId"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:bg-gray-100"
               [class.border-red-500]="confObjOperationForm.get('msgId')?.invalid && confObjOperationForm.get('msgId')?.touched">
-            <p *ngIf="confObjOperationForm.get('msgId')?.invalid && confObjOperationForm.get('msgId')?.touched"
-              class="mt-1 text-sm text-red-600">
-              message Id is required
-            </p>
-          </div>    
+            @if (confObjOperationForm.get('msgId')?.invalid && confObjOperationForm.get('msgId')?.touched) {
+              <p
+                class="mt-1 text-sm text-red-600">
+                message Id is required
+              </p>
+            }
+          </div>
 
           <!-- operationCode -->
           <div>
@@ -85,11 +93,13 @@
             <input id="operationCode" type="number" formControlName="operationCode"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:bg-gray-100"
               [class.border-red-500]="confObjOperationForm.get('operationCode')?.invalid && confObjOperationForm.get('operationCode')?.touched">
-            <p *ngIf="confObjOperationForm.get('operationCode')?.invalid && confObjOperationForm.get('operationCode')?.touched"
-              class="mt-1 text-sm text-red-600">
-              operation Code is required
-            </p>
-          </div>       
+            @if (confObjOperationForm.get('operationCode')?.invalid && confObjOperationForm.get('operationCode')?.touched) {
+              <p
+                class="mt-1 text-sm text-red-600">
+                operation Code is required
+              </p>
+            }
+          </div>
 
           <!-- isDangerous -->
           <div class="flex items-center justify-start">
@@ -103,24 +113,28 @@
               </div>
               <span class="ml-3 text-sm text-gray-700">Show in Show In Nav Menu</span>
             </label>
-            <p *ngIf="confObjOperationForm.get('isDangerous')?.invalid && confObjOperationForm.get('isDangerous')?.touched"
-              class="mt-1 text-sm text-red-600">
-              isDangerous is required
-            </p>
+            @if (confObjOperationForm.get('isDangerous')?.invalid && confObjOperationForm.get('isDangerous')?.touched) {
+              <p
+                class="mt-1 text-sm text-red-600">
+                isDangerous is required
+              </p>
+            }
           </div>
         </div>
 
         <!-- Footer -->
-        <div class="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200" *ngIf="mode !== 'view'">
-          <button type="button" (click)="onCancel()"
-            class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
-            Cancel
-          </button>
-          <button type="submit" [disabled]="confObjOperationForm.invalid"
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200">
-            Save Changes
-          </button>
-        </div>
+        @if (mode !== 'view') {
+          <div class="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
+            <button type="button" (click)="onCancel()"
+              class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+              Cancel
+            </button>
+            <button type="submit" [disabled]="confObjOperationForm.invalid"
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200">
+              Save Changes
+            </button>
+          </div>
+        }
       </form>
     </div>
   </div>

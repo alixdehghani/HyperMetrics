@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, inject, OnInit } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -7,12 +7,11 @@ import { ENodeBTreeComponent } from './enodeb-tree/enodeb-tree';
 
 @Component({
     imports: [
-        CommonModule,
-        RouterModule,
-        FormsModule,
-        ReactiveFormsModule,
-        ENodeBTreeComponent
-    ],
+    RouterModule,
+    FormsModule,
+    ReactiveFormsModule,
+    ENodeBTreeComponent
+],
     selector: 'config',
     templateUrl: 'config.html',
     styleUrl: 'config.scss',

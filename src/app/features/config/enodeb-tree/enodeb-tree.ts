@@ -1,6 +1,6 @@
 // components/enodeb-tree/enodeb-tree.component.ts
 import { Component, inject, OnDestroy, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { ENodeBTreeService } from '../enodeb-tree.service';
 import { TreeNodeComponent } from '../../../shared/tree-node/tree-node';
 import { EditHeaderModalComponent } from '../edit-header-modal/edit-header-modal';
@@ -15,14 +15,13 @@ import { EditConfObjParamModalComponent } from '../edit-conf-obj-param-modal/edi
 @Component({
     selector: 'enodeb-tree',
     imports: [
-        CommonModule,
-        TreeNodeComponent,
-        EditHeaderModalComponent,
-        EditConfTypeModalComponent,
-        EditConfObjModalComponent,
-        EditConfObjOperationModalComponent,
-        EditConfObjParamModalComponent
-    ],
+    TreeNodeComponent,
+    EditHeaderModalComponent,
+    EditConfTypeModalComponent,
+    EditConfObjModalComponent,
+    EditConfObjOperationModalComponent,
+    EditConfObjParamModalComponent
+],
     templateUrl: './enodeb-tree.html',
     styleUrls: ['./enodeb-tree.scss']
 })

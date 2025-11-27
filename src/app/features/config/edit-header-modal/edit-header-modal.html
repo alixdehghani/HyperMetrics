@@ -5,14 +5,14 @@
     <div class="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"></div>
 
     <!-- Modal -->
-    <div 
+    <div
       class="relative bg-white rounded-lg shadow-xl max-w-md w-full transform transition-all"
       (click)="$event.stopPropagation()">
-      
+
       <!-- Header -->
       <div class="flex items-center justify-between p-6 border-b border-gray-200">
         <h3 class="text-xl font-bold text-gray-900">Edit Configuration Header</h3>
-        <button 
+        <button
           (click)="onCancel()"
           class="text-gray-400 hover:text-gray-600 transition-colors">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,11 +35,12 @@
               formControlName="neVersion"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               [class.border-red-500]="headerForm.get('neVersion')?.invalid && headerForm.get('neVersion')?.touched">
-            <p 
-              *ngIf="headerForm.get('neVersion')?.invalid && headerForm.get('neVersion')?.touched"
-              class="mt-1 text-sm text-red-600">
-              NE Version is required
-            </p>
+            @if (headerForm.get('neVersion')?.invalid && headerForm.get('neVersion')?.touched) {
+              <p
+                class="mt-1 text-sm text-red-600">
+                NE Version is required
+              </p>
+            }
           </div>
 
           <!-- NE Type ID -->
@@ -53,11 +54,12 @@
               formControlName="neTypeId"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               [class.border-red-500]="headerForm.get('neTypeId')?.invalid && headerForm.get('neTypeId')?.touched">
-            <p 
-              *ngIf="headerForm.get('neTypeId')?.invalid && headerForm.get('neTypeId')?.touched"
-              class="mt-1 text-sm text-red-600">
-              NE Type ID is required
-            </p>
+            @if (headerForm.get('neTypeId')?.invalid && headerForm.get('neTypeId')?.touched) {
+              <p
+                class="mt-1 text-sm text-red-600">
+                NE Type ID is required
+              </p>
+            }
           </div>
 
           <!-- NE Type Name -->
@@ -71,11 +73,12 @@
               formControlName="neTypeName"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               [class.border-red-500]="headerForm.get('neTypeName')?.invalid && headerForm.get('neTypeName')?.touched">
-            <p 
-              *ngIf="headerForm.get('neTypeName')?.invalid && headerForm.get('neTypeName')?.touched"
-              class="mt-1 text-sm text-red-600">
-              NE Type Name is required
-            </p>
+            @if (headerForm.get('neTypeName')?.invalid && headerForm.get('neTypeName')?.touched) {
+              <p
+                class="mt-1 text-sm text-red-600">
+                NE Type Name is required
+              </p>
+            }
           </div>
         </div>
 

@@ -1,14 +1,12 @@
 // components/tree-node/tree-node.component.ts
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { ConfigObjType, ConfigObj, OperationType, Parameter, TreeNodeType } from '../../features/config/enodeb-config.model';
 
 @Component({
     selector: 'app-tree-node',
     standalone: true,
-    imports: [
-        CommonModule
-    ],
+    imports: [],
     templateUrl: './tree-node.html',
     styleUrls: ['./tree-node.scss']
 })

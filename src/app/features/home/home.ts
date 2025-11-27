@@ -1,13 +1,12 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { RouteService } from '../../core/services/route/route.service';
 
 @Component({
     imports: [
-        CommonModule,
-        RouterModule
-    ],
+    RouterModule
+],
     selector: 'home',
     templateUrl: 'home.html',
     styleUrl: 'home.scss',

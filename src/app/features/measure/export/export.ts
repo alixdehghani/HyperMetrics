@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, inject } from '@angular/core';
 import { MeasureObj, MeasureType } from '../../../core/interfaces/measures.interfaces';
 import { MeasurService } from '../measur.service';
@@ -15,9 +15,7 @@ export const filenames = {
     OssConfig: 'oss-config.json'
 }
 @Component({
-    imports: [
-        CommonModule
-    ],
+    imports: [],
     selector: 'measure-export',
     templateUrl: 'export.html'
 })

@@ -1,6 +1,6 @@
 // components/modals/edit-header-modal/edit-header-modal.component.ts
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ENodeBConfig } from '../enodeb-config.model';
 import { ENodeBTreeService } from '../enodeb-tree.service';
@@ -8,7 +8,7 @@ import { ENodeBTreeService } from '../enodeb-tree.service';
 
 @Component({
   selector: 'app-edit-header-modal',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [ReactiveFormsModule],
   templateUrl: './edit-header-modal.html'
 })
 export class EditHeaderModalComponent implements OnInit {
