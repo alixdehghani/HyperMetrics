@@ -1,6 +1,6 @@
 // formula-input.component.ts
 
-import { Component, ElementRef, EventEmitter, HostListener, inject, Input, Output, Type, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, inject, Type, input, output, viewChild } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { FormulaParserService } from '../../core/helper/formula-helper';
 import { ClassifiedToken, TokenType } from '../../core/interfaces/classified-token.interface';
@@ -26,14 +26,14 @@ interface FormulaToken {
     templateUrl: './formula-input.html',
 })
 export class FormulaInput {
-    @Input() counters: CounterItem[] = [];
-    @Input() placeholder: string = 'Enter math formula...';
-    @Input() initialValue: string = '';
-    @Output() formulaChange = new EventEmitter<string>();
-    @Output() validationChange = new EventEmitter<boolean>();
+    readonly counters = input<CounterItem[]>([]);
+    readonly placeholder = input<string>('Enter math formula...');
+    readonly initialValue = input<string>('');
+    readonly formulaChange = output<string>();
+    readonly validationChange = output<boolean>();
 
-    @ViewChild('inputField') inputField!: ElementRef<HTMLInputElement>;
-    @ViewChild('formulaDisplay') formulaDisplay!: ElementRef<HTMLDivElement>;
+    readonly inputField = viewChild.required<ElementRef<HTMLInputElement>>('inputField');
+    readonly formulaDisplay = viewChild.required<ElementRef<HTMLDivElement>>('formulaDisplay');
 
     currentInput: string = '';
     showSuggestions: boolean = false;
@@ -45,8 +45,9 @@ export class FormulaInput {
     private blurTimeout: any;
     private formulaParser = inject(FormulaParserService);
     ngOnInit() {
-        if (this.initialValue) {
-            this.parseInitialFormula(this.initialValue);
+        const initialValue = this.initialValue();
+        if (initialValue) {
+            this.parseInitialFormula(initialValue);
         }
     }
 
@@ -133,12 +134,12 @@ export class FormulaInput {
     }
 
     focusInput() {
-        this.inputField.nativeElement.focus();
+        this.inputField().nativeElement.focus();
     }
 
     filterCounters(searchTerm: string) {
         const term = searchTerm.toLowerCase().trim();
-        this.filteredCounters = this.counters.filter(counter =>
+        this.filteredCounters = this.counters().filter(counter =>
             counter.name.toLowerCase().includes(term) ||
             (counter.displayName && counter.displayName.toLowerCase().includes(term))
         );
@@ -165,7 +166,7 @@ export class FormulaInput {
 
         const input = this.currentInput.trim();
         if (!input) return;
-        const scope = this.counters.reduce((acc, c) => {
+        const scope = this.counters().reduce((acc, c) => {
             acc[c.name] = 1;
             return acc;
         }, {} as Record<string, number>);
@@ -175,7 +176,7 @@ export class FormulaInput {
         this.formulaTokens = [...this.formulaTokens, ...tokens.map((t, index) => ({
             type: t.type,
             value: t.token,
-            id: this.counters.find(c => c.name === t.token)?.id,
+            id: this.counters().find(c => c.name === t.token)?.id,
             startIndex: this.formulaTokens.length + 1 + index,
             endIndex: this.formulaTokens.length + 1 + index
         }))];
@@ -200,7 +201,7 @@ export class FormulaInput {
     }
 
     private parseInitialFormula(formula: string) {
-        const scope = this.counters.reduce((acc, c) => {
+        const scope = this.counters().reduce((acc, c) => {
             acc[c.name] = 1;
             return acc;
         }, {} as Record<string, number>);
@@ -210,7 +211,7 @@ export class FormulaInput {
         this.formulaTokens = tokens.map((t, index) => ({
             type: t.type,
             value: t.token,
-            id: this.counters.find(c => c.name === t.token)?.id,
+            id: this.counters().find(c => c.name === t.token)?.id,
             startIndex: index,
             endIndex: index
         }));
@@ -228,7 +229,7 @@ export class FormulaInput {
     }
 
     private validateFormula() {
-        const scope = this.counters.reduce((acc, c) => {
+        const scope = this.counters().reduce((acc, c) => {
             acc[c.name] = 1;
             return acc;
         }, {} as Record<string, number>);
@@ -243,7 +244,7 @@ export class FormulaInput {
         if (validationMathjs.error) {
             errors.push(validationMathjs.error)
         }
-        const counterNames = this.counters.map(c => c.name);
+        const counterNames = this.counters().map(c => c.name);
         for (const token of result.tokens.filter(t => t.type === 'identifier').map(t => t.token)) {
             if (!counterNames.includes(token)) {
                 errors.push(`Invalid token "${token}" in formula`);

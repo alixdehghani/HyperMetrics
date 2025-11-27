@@ -1,5 +1,5 @@
 <!-- components/tree-node/tree-node.component.html -->
-<div class="tree-node" [class.last]="isLast">
+<div class="tree-node" [class.last]="isLast()">
   <div class="flex items-center py-2 px-3 hover:bg-gray-50 rounded-lg group transition-all duration-200"
     (mouseenter)="showActions = true" (mouseleave)="showActions = false">
 
@@ -27,7 +27,7 @@
     <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
       [class.opacity-100]="showActions">
 
-      <button (click)="onView({type: nodeType, path: path})"
+      <button (click)="onView({type: nodeType(), path: path()})"
         class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer" title="View">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -37,14 +37,14 @@
         </svg>
       </button>
 
-      <button (click)="onAdd({type: nodeType, path: path})"
+      <button (click)="onAdd({type: nodeType(), path: path()})"
         class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer" title="Add">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
       </button>
 
-      <button (click)="onEdit({type: nodeType, path: path})"
+      <button (click)="onEdit({type: nodeType(), path: path()})"
         class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors duration-150 cursor-pointer" title="Edit">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -66,7 +66,7 @@
   @if (isExpanded && hasChildren()) {
     <div class="ml-6 border-l-2 border-gray-200 pl-4 mt-1">
       <!-- ConfigObjList Children -->
-      @if (nodeType === 'configType') {
+      @if (nodeType() === 'configType') {
         <!-- <div class="mb-2">
         <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
           class="text-xl mr-3">❕</span>Configuration Type: <span class="text-black">{{ node.configType }}</span></div>
@@ -78,15 +78,15 @@
           </div>
         </div>
         <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Config Objects</div> -->
-        @for (configObj of node.configObjList; track configObj; let i = $index) {
+        @for (configObj of node().configObjList; track configObj; let i = $index) {
           <app-tree-node [node]="configObj"
-            [nodeType]="'configObj'" [path]="getCopyArray(path, i)" [isLast]="i === node.configObjList.length - 1"
+            [nodeType]="'configObj'" [path]="getCopyArray(path(), i)" [isLast]="i === node().configObjList.length - 1"
             (edit)="onEdit($event)" (delete)="onDelete()" (add)="onAdd($event)" (view)="onView($event)">
           </app-tree-node>
         }
       }
       <!-- OperationTypes and Params Children -->
-      @if (nodeType === 'configObj') {
+      @if (nodeType() === 'configObj') {
         <!-- <div class="mb-2">
         <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
           class="text-xl mr-3">❕</span>ConfigObjId: <span class="text-black">{{ node.configObjId }}</span></div>
@@ -111,35 +111,35 @@
                             <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
                               class="text-xl mr-3">❕</span>showInNavMenu: <span class="text-black">{{ node.showInNavMenue }}</span></div>
                             </div> -->
-                            @if (node.operationTypes && node.operationTypes.length > 0) {
+                            @if (node().operationTypes && node().operationTypes.length > 0) {
                               <div class="mb-2">
                                 <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Operations</div>
-                                @for (operation of node.operationTypes; track operation; let i = $index) {
+                                @for (operation of node().operationTypes; track operation; let i = $index) {
                                   <app-tree-node [node]="operation"
-                                    [nodeType]="'operationType'" [path]="getCopyArray(path, i)"
-                                    [isLast]="i === node.operationTypes.length - 1" (edit)="onEdit($event)" (delete)="onDelete()"
+                                    [nodeType]="'operationType'" [path]="getCopyArray(path(), i)"
+                                    [isLast]="i === node().operationTypes.length - 1" (edit)="onEdit($event)" (delete)="onDelete()"
                                     (add)="onAdd($event)" (view)="onView($event)">
                                   </app-tree-node>
                                 }
                               </div>
                             }
-                            @if (node.params && node.params.length > 0) {
+                            @if (node().params && node().params.length > 0) {
                               <div>
                                 <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Parameters</div>
-                                @for (param of node.params; track param; let i = $index) {
+                                @for (param of node().params; track param; let i = $index) {
                                   <app-tree-node [node]="param" [nodeType]="'param'"
-                                    [path]="getCopyArray(path, i)" [isLast]="i === node.params.length - 1" (edit)="onEdit($event)"
+                                    [path]="getCopyArray(path(), i)" [isLast]="i === node().params.length - 1" (edit)="onEdit($event)"
                                     (delete)="onDelete()" (add)="onAdd($event)" (view)="onView($event)">
                                   </app-tree-node>
                                 }
                               </div>
                             }
                           }
-                          @if (nodeType === 'configObj' && node.configObjList && node.configObjList.length > 0) {
+                          @if (nodeType() === 'configObj' && node().configObjList && node().configObjList.length > 0) {
                             <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Config Objects</div>
-                            @for (configObj of node.configObjList; track configObj; let i = $index) {
+                            @for (configObj of node().configObjList; track configObj; let i = $index) {
                               <app-tree-node [node]="configObj"
-                                [nodeType]="'configObj'" [path]="getCopyArray(path, i)" [isLast]="i === node.configObjList.length - 1"
+                                [nodeType]="'configObj'" [path]="getCopyArray(path(), i)" [isLast]="i === node().configObjList.length - 1"
                                 (edit)="onEdit($event)" (delete)="onDelete()" (add)="onAdd($event)" (view)="onView($event)">
                               </app-tree-node>
                             }

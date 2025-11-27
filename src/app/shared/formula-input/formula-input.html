@@ -44,7 +44,7 @@
         (focus)="onInputFocus()"
         (blur)="onInputBlur()"
         class="flex-1 min-w-[100px] outline-none bg-transparent"
-        [placeholder]="formulaTokens.length === 0 ? placeholder : ''"
+        [placeholder]="formulaTokens.length === 0 ? placeholder() : ''"
         />
     </div>
   </div>

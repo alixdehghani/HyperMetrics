@@ -1,5 +1,5 @@
 // components/modals/edit-header-modal/edit-header-modal.component.ts
-import { Component, Input, Output, EventEmitter, OnInit, input, inject } from '@angular/core';
+import { Component, OnInit, input, inject, output } from '@angular/core';
 
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormArray } from '@angular/forms';
 import { ConfigObj, ConfigObjType } from '../enodeb-config.model';
@@ -15,10 +15,10 @@ export class EditConfObjModalComponent implements OnInit {
   private fb = inject(FormBuilder);
   private treeService = inject(ENodeBTreeService);
 
-  @Input() config: ConfigObj | null = null;
-  @Input() path: number[] = [];
-  @Input() mode!: 'edit' | 'view' | 'create';
-  @Output() close = new EventEmitter<void>();
+  readonly config = input<ConfigObj | null>(null);
+  readonly path = input<number[]>([]);
+  readonly mode = input.required<'edit' | 'view' | 'create'>();
+  readonly close = output<void>();
 
 
   confObjForm!: FormGroup;
@@ -29,27 +29,30 @@ export class EditConfObjModalComponent implements OnInit {
   constructor() { }
 
   ngOnInit(): void {
-    if (this.mode === 'edit' && !this.config) {
+    const mode = this.mode();
+    const config = this.config();
+    if (mode === 'edit' && !config) {
       alert('Invalid config provided to EditConfObjModalComponent');
+      // TODO: The 'emit' function requires a mandatory void argument
       this.close.emit();
       return;
     }    
     this.confObjForm = this.fb.group({
-      configObjId: [this.config?.configObjId || '', Validators.required],
-      dataName: [this.config?.dataName || '', Validators.required],
-      title: [this.config?.title || '', Validators.required],
-      parameterName: [this.config?.parameterName || '', Validators.required],
-      abbreviation: [this.config?.abbreviation || '', Validators.required],
-      mmlCommandNamePosfix: [this.config?.mmlCommandNamePosfix || '', Validators.required],
-      className: [this.config?.className || '', Validators.required],
-      module: [this.config?.module || '', Validators.required],
-      showInOSS: [this.config?.showInOSS || false],
-      showInUI: [this.config?.showInUI || false],
-      showInNavMenue: [this.config?.showInNavMenue || false],
-      operationTypes: this.fb.array(this.config?.operationTypes || []),
-      params: this.fb.array(this.config?.params || []),
+      configObjId: [config?.configObjId || '', Validators.required],
+      dataName: [config?.dataName || '', Validators.required],
+      title: [config?.title || '', Validators.required],
+      parameterName: [config?.parameterName || '', Validators.required],
+      abbreviation: [config?.abbreviation || '', Validators.required],
+      mmlCommandNamePosfix: [config?.mmlCommandNamePosfix || '', Validators.required],
+      className: [config?.className || '', Validators.required],
+      module: [config?.module || '', Validators.required],
+      showInOSS: [config?.showInOSS || false],
+      showInUI: [config?.showInUI || false],
+      showInNavMenue: [config?.showInNavMenue || false],
+      operationTypes: this.fb.array(config?.operationTypes || []),
+      params: this.fb.array(config?.params || []),
     });    
-    if (this.mode === 'view') {
+    if (mode === 'view') {
       this.confObjForm.disable();
     }
   }
@@ -57,16 +60,18 @@ export class EditConfObjModalComponent implements OnInit {
   onSubmit(): void {
     if (this.confObjForm.valid) {
       const { configObjId, dataName, title, parameterName, abbreviation, mmlCommandNamePosfix, className, module, showInOSS, showInUI, showInNavMenue, params, operationTypes } = this.confObjForm.value;
-      if (this.mode === 'create') {
-        this.treeService.addConfigObj(this.path, { configObjId, dataName, title, parameterName, abbreviation, mmlCommandNamePosfix, className, module, showInOSS, showInUI, showInNavMenue, operationTypes: operationTypes || [], params: params || [], configObjList: [] });
+      if (this.mode() === 'create') {
+        this.treeService.addConfigObj(this.path(), { configObjId, dataName, title, parameterName, abbreviation, mmlCommandNamePosfix, className, module, showInOSS, showInUI, showInNavMenue, operationTypes: operationTypes || [], params: params || [], configObjList: [] });
       } else {
-        this.treeService.updateConfigObj(this.path, { configObjId, dataName, title, parameterName, abbreviation, mmlCommandNamePosfix, className, module, showInOSS, showInUI, showInNavMenue, operationTypes: operationTypes || [], params: params || [], configObjList: this.config?.configObjList || [] });
+        this.treeService.updateConfigObj(this.path(), { configObjId, dataName, title, parameterName, abbreviation, mmlCommandNamePosfix, className, module, showInOSS, showInUI, showInNavMenue, operationTypes: operationTypes || [], params: params || [], configObjList: this.config()?.configObjList || [] });
       }
+      // TODO: The 'emit' function requires a mandatory void argument
       this.close.emit();
     }
   }
 
   onCancel(): void {
+    // TODO: The 'emit' function requires a mandatory void argument
     this.close.emit();
   }
 

@@ -1,5 +1,5 @@
 // components/modals/edit-header-modal/edit-header-modal.component.ts
-import { Component, Input, Output, EventEmitter, OnInit, input, inject } from '@angular/core';
+import { Component, OnInit, input, inject, output } from '@angular/core';
 
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ConfigObjType } from '../enodeb-config.model';
@@ -15,10 +15,10 @@ export class EditConfTypeModalComponent implements OnInit {
   private fb = inject(FormBuilder);
   private treeService = inject(ENodeBTreeService);
 
-  @Input() config: ConfigObjType | null = null;
-  @Input() index: number | null = null;
-  @Input() mode!: 'edit' | 'view' | 'create';
-  @Output() close = new EventEmitter<void>();
+  readonly config = input<ConfigObjType | null>(null);
+  readonly index = input<number | null>(null);
+  readonly mode = input.required<'edit' | 'view' | 'create'>();
+  readonly close = output<void>();
 
   confTypeForm!: FormGroup;
 
@@ -28,22 +28,26 @@ export class EditConfTypeModalComponent implements OnInit {
   constructor() { }
 
   ngOnInit(): void {
-    if (this.mode === 'edit' && !this.config) {
+    const mode = this.mode();
+    const config = this.config();
+    if (mode === 'edit' && !config) {
       alert('Invalid config provided to EditConfTypeModalComponent');
+      // TODO: The 'emit' function requires a mandatory void argument
       this.close.emit();
       return;      
     }
-    if (this.mode === 'edit' && this.index === null) {
+    if (mode === 'edit' && this.index() === null) {
       alert('Invalid index provided to EditConfTypeModalComponent');
+      // TODO: The 'emit' function requires a mandatory void argument
       this.close.emit();
       return;
     }
     this.confTypeForm = this.fb.group({
-      configType: [this.config?.configType || '', Validators.required],
-      mmlCommandNamePrefix: [this.config?.mmlCommandNamePrefix || '', Validators.required],
-      configTypeId: [this.config?.configTypeId || '', Validators.required]
+      configType: [config?.configType || '', Validators.required],
+      mmlCommandNamePrefix: [config?.mmlCommandNamePrefix || '', Validators.required],
+      configTypeId: [config?.configTypeId || '', Validators.required]
     });
-    if (this.mode === 'view') {
+    if (mode === 'view') {
       this.confTypeForm.disable();
     }
   }
@@ -51,16 +55,18 @@ export class EditConfTypeModalComponent implements OnInit {
   onSubmit(): void {
     if (this.confTypeForm.valid) {
       const { configType, mmlCommandNamePrefix, configTypeId } = this.confTypeForm.value;
-      if (this.mode === 'create') {
+      if (this.mode() === 'create') {
         this.treeService.addConfigType({ configType, mmlCommandNamePrefix, configTypeId, configObjList: [] });
       } else {
-        this.treeService.updateConfigType(this.index!, { configType, mmlCommandNamePrefix, configTypeId, configObjList: this.config?.configObjList || [] } );
+        this.treeService.updateConfigType(this.index()!, { configType, mmlCommandNamePrefix, configTypeId, configObjList: this.config()?.configObjList || [] } );
       }
+      // TODO: The 'emit' function requires a mandatory void argument
       this.close.emit();
     }
   }
 
   onCancel(): void {
+    // TODO: The 'emit' function requires a mandatory void argument
     this.close.emit();
   }
 }

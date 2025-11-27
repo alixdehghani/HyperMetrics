@@ -1,5 +1,5 @@
 // components/tree-node/tree-node.component.ts
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, input, output, output as output_1 } from '@angular/core';
 
 import { ConfigObjType, ConfigObj, OperationType, Parameter, TreeNodeType } from '../../features/config/enodeb-config.model';
 
@@ -11,14 +11,26 @@ import { ConfigObjType, ConfigObj, OperationType, Parameter, TreeNodeType } from
     styleUrls: ['./tree-node.scss']
 })
 export class TreeNodeComponent {
-    @Input() node: any;
-    @Input() nodeType!: TreeNodeType;
-    @Input() path: number[] = [];
-    @Input() isLast = false;
-    @Output() add = new EventEmitter<{type: TreeNodeType, path: number[]}>();
-    @Output() view = new EventEmitter<{type: TreeNodeType, path: number[]}>();
-    @Output() edit = new EventEmitter<{type: TreeNodeType, path: number[]}>();
-    @Output() delete = new EventEmitter<{type: TreeNodeType, path: number[]}>();
+    readonly node = input<any>();
+    readonly nodeType = input.required<TreeNodeType>();
+    readonly path = input<number[]>([]);
+    readonly isLast = input(false);
+    readonly add = output<{
+    type: TreeNodeType;
+    path: number[];
+}>();
+    readonly view = output<{
+    type: TreeNodeType;
+    path: number[];
+}>();
+    readonly edit = output<{
+    type: TreeNodeType;
+    path: number[];
+}>();
+    readonly delete = output<{
+    type: TreeNodeType;
+    path: number[];
+}>();
 
     isExpanded = false;
     showActions = false;
@@ -35,30 +47,33 @@ export class TreeNodeComponent {
             operationType: '⚙️',
             param: '🔧',
         };
-        return icons[this.nodeType] || '📌';
+        return icons[this.nodeType()] || '📌';
     }
 
     getTitle(): string {
-        switch (this.nodeType) {
+        switch (this.nodeType()) {
             case 'configType':
-                return `${this.node.configType} (${this.node.configTypeId})`;
+                return `${this.node().configType} (${this.node().configTypeId})`;
             case 'configObj':
-                return `${this.node.parameterName} - ${this.node.dataName}`;
+                return `${this.node().parameterName} - ${this.node().dataName}`;
             case 'operationType':
-                return `${this.node.operationName}`;
+                return `${this.node().operationName}`;
             case 'param':
-                return `${this.node.dataName} [${this.node.abbreviation}]`;
+                return `${this.node().dataName} [${this.node().abbreviation}]`;
             default:
                 return 'Unknown';
         }
     }
 
     hasChildren(): boolean {
-        if (this.nodeType === 'configType') {
-            return this.node.configObjList && this.node.configObjList.length > 0;
-        } else if (this.nodeType === 'configObj') {
-            return (this.node.operationTypes && this.node.operationTypes.length > 0) ||
-                (this.node.params && this.node.params.length > 0);
+        const nodeType = this.nodeType();
+        if (nodeType === 'configType') {
+            const node = this.node();
+            return node.configObjList && node.configObjList.length > 0;
+        } else if (nodeType === 'configObj') {
+            const node = this.node();
+            return (node.operationTypes && node.operationTypes.length > 0) ||
+                (node.params && node.params.length > 0);
         }
         return false;
     }
@@ -76,7 +91,7 @@ export class TreeNodeComponent {
     }
 
     onDelete(): void {
-        console.log('Delete:', this.nodeType, this.path);
+        console.log('Delete:', this.nodeType(), this.path());
         // Confirm and delete
     }
 

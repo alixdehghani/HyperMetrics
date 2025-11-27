@@ -1,5 +1,5 @@
 // components/modals/edit-header-modal/edit-header-modal.component.ts
-import { Component, Input, Output, EventEmitter, OnInit, input, inject } from '@angular/core';
+import { Component, OnInit, input, inject, output } from '@angular/core';
 
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormArray } from '@angular/forms';
 import { OperationType } from '../enodeb-config.model';
@@ -15,10 +15,10 @@ export class EditConfObjOperationModalComponent implements OnInit {
   private fb = inject(FormBuilder);
   private treeService = inject(ENodeBTreeService);
 
-  @Input() config: OperationType | null = null;
-  @Input() path: number[] = [];
-  @Input() mode!: 'edit' | 'view' | 'create';
-  @Output() close = new EventEmitter<void>();
+  readonly config = input<OperationType | null>(null);
+  readonly path = input<number[]>([]);
+  readonly mode = input.required<'edit' | 'view' | 'create'>();
+  readonly close = output<void>();
 
 
   confObjOperationForm!: FormGroup;
@@ -29,20 +29,23 @@ export class EditConfObjOperationModalComponent implements OnInit {
   constructor() { }
 
   ngOnInit(): void {
-    if (this.mode === 'edit' && !this.config) {
+    const mode = this.mode();
+    const config = this.config();
+    if (mode === 'edit' && !config) {
       alert('Invalid config provided to EditConfObjModalComponent');
+      // TODO: The 'emit' function requires a mandatory void argument
       this.close.emit();
       return;
     }
     this.confObjOperationForm = this.fb.group({
-      operationName: [this.config?.operationName || '', Validators.required],
-      msgId: [this.config?.msgId || 0, [Validators.required, Validators.min(0)]],
-      operationCode: [this.config?.operationCode || 0, [Validators.required, Validators.min(0)]],
-      operationType: [this.config?.operationType || '', Validators.required],
-      title: [this.config?.title || '', Validators.required],
-      isDangerous: [this.config?.isDangerous || false]
+      operationName: [config?.operationName || '', Validators.required],
+      msgId: [config?.msgId || 0, [Validators.required, Validators.min(0)]],
+      operationCode: [config?.operationCode || 0, [Validators.required, Validators.min(0)]],
+      operationType: [config?.operationType || '', Validators.required],
+      title: [config?.title || '', Validators.required],
+      isDangerous: [config?.isDangerous || false]
     });
-    if (this.mode === 'view') {
+    if (mode === 'view') {
       this.confObjOperationForm.disable();
     }
   }
@@ -50,16 +53,18 @@ export class EditConfObjOperationModalComponent implements OnInit {
   onSubmit(): void {
     if (this.confObjOperationForm.valid) {
       const { operationName, msgId, operationCode, operationType, title, isDangerous } = this.confObjOperationForm.value;
-      if (this.mode === 'create') {
-        this.treeService.addOperationType(this.path, { operationName, msgId, operationCode, operationType, title, isDangerous });
+      if (this.mode() === 'create') {
+        this.treeService.addOperationType(this.path(), { operationName, msgId, operationCode, operationType, title, isDangerous });
       } else {
-        this.treeService.updateOperationType(this.path, { operationName, msgId, operationCode, operationType, title, isDangerous });
+        this.treeService.updateOperationType(this.path(), { operationName, msgId, operationCode, operationType, title, isDangerous });
       }
+      // TODO: The 'emit' function requires a mandatory void argument
       this.close.emit();
     }
   }
 
   onCancel(): void {
+    // TODO: The 'emit' function requires a mandatory void argument
     this.close.emit();
   }
 }

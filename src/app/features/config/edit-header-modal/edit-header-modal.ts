@@ -1,5 +1,5 @@
 // components/modals/edit-header-modal/edit-header-modal.component.ts
-import { Component, Input, Output, EventEmitter, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, input, output } from '@angular/core';
 
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ENodeBConfig } from '../enodeb-config.model';
@@ -15,8 +15,8 @@ export class EditHeaderModalComponent implements OnInit {
   private fb = inject(FormBuilder);
   private treeService = inject(ENodeBTreeService);
 
-  @Input() config: ENodeBConfig | null = null;
-  @Output() close = new EventEmitter<void>();
+  readonly config = input<ENodeBConfig | null>(null);
+  readonly close = output<void>();
 
   headerForm!: FormGroup;
 
@@ -27,9 +27,9 @@ export class EditHeaderModalComponent implements OnInit {
 
   ngOnInit(): void {
     this.headerForm = this.fb.group({
-      neVersion: [this.config?.neVersion || '', Validators.required],
-      neTypeId: [this.config?.neTypeId || '', Validators.required],
-      neTypeName: [this.config?.neTypeName || '', Validators.required]
+      neVersion: [this.config()?.neVersion || '', Validators.required],
+      neTypeId: [this.config()?.neTypeId || '', Validators.required],
+      neTypeName: [this.config()?.neTypeName || '', Validators.required]
     });
   }
 
@@ -37,11 +37,13 @@ export class EditHeaderModalComponent implements OnInit {
     if (this.headerForm.valid) {
       const { neVersion, neTypeId, neTypeName } = this.headerForm.value;
       this.treeService.updateHeader(neVersion, neTypeId, neTypeName);
+      // TODO: The 'emit' function requires a mandatory void argument
       this.close.emit();
     }
   }
 
   onCancel(): void {
+    // TODO: The 'emit' function requires a mandatory void argument
     this.close.emit();
   }
 }
