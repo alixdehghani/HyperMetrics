@@ -1,0 +1,99 @@
+<!-- components/enodeb-tree/enodeb-tree.component.html -->
+<div class="w-full h-full bg-gray-50 p-6">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header Section -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-800 mb-2">eNodeB Configuration</h1>
+          <div class="text-sm text-gray-600 space-y-1" *ngIf="config">
+            <p><span class="font-semibold">Version:</span> {{ config.neVersion }}</p>
+            <p><span class="font-semibold">Type ID:</span> {{ config.neTypeId }}</p>
+            <p><span class="font-semibold">Type Name:</span> {{ config.neTypeName }}</p>
+          </div>
+        </div>
+        <button 
+          (click)="openHeaderModal()"
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center gap-2 cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Edit Header
+        </button>
+      </div>
+    </div>
+
+    <!-- Tree View Section -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-xl font-bold text-gray-800">Configuration Tree</h2>
+        <button (click)="onAddNode({type: 'root', path: [0]})"
+        class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer" title="Add">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
+      </div>
+      
+      <div class="border border-gray-200 rounded-lg overflow-hidden">
+        <div *ngIf="config" class="p-4">
+          <app-tree-node 
+            *ngFor="let configType of config.configObjTypeList; let i = index"
+            [node]="configType"
+            [nodeType]="'configType'"
+            [path]="[i]"
+            [isLast]="i === config.configObjTypeList.length - 1"
+            (add)="onAddNode($event)"
+            (edit)="onEditNode($event)"
+            (delete)="onDeleteNode($event)"
+            (view)="onViewNode($event)"
+            >
+          </app-tree-node>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header Modal -->
+  <app-edit-header-modal
+    *ngIf="showHeaderModal"
+    [config]="config"
+    (close)="closeHeaderModal()">
+  </app-edit-header-modal>
+
+  <!-- Edit Config Type Modal -->
+  <app-edit-conf-type-modal
+    *ngIf="showConfTypeModal"
+    [index]="path[0]"
+    [config]="confTypeModalData"
+    [mode]="mode"
+    (close)="closeConfTypeModal()">
+  </app-edit-conf-type-modal>
+
+  <!-- Edit Config Object Modal -->
+  <app-edit-conf-obj-modal
+    *ngIf="showConfObjModal"
+    [config]="confObjModalData"
+    [path]="path"
+    [mode]="mode"
+    (close)="closeConfObjModal()">
+  </app-edit-conf-obj-modal>
+
+  <!-- Edit Operation Type Modal -->
+  <app-edit-conf-obj-operation-modal
+    *ngIf="showOperationTypeModal"
+    [config]="operationTypeModalData"
+    [path]="path"
+    [mode]="mode"
+    (close)="closeOperationTypeModal()">
+  </app-edit-conf-obj-operation-modal>
+
+  <!-- Edit Config Object Parameter Modal -->
+  <app-edit-conf-obj-param-modal
+    *ngIf="showConfObjParamModal"
+    [config]="confObjParamModalData"
+    [path]="path"
+    [mode]="mode"
+    (close)="closeConfObjParamModal()">
+  </app-edit-conf-obj-param-modal>
+</div>

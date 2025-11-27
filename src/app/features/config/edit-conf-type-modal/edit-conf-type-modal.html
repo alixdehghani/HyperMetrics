@@ -1,0 +1,100 @@
+<!-- components/modals/edit-header-modal/edit-header-modal.component.html -->
+<div class="fixed inset-0 z-50 overflow-y-auto" (click)="onCancel()">
+  <div class="flex min-h-screen items-center justify-center p-4">
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"></div>
+
+    <!-- Modal -->
+    <div 
+      class="relative bg-white rounded-lg shadow-xl max-w-md w-full transform transition-all"
+      (click)="$event.stopPropagation()">
+      
+      <!-- Header -->
+      <div class="flex items-center justify-between p-6 border-b border-gray-200">
+        <h3 class="text-xl font-bold text-gray-900">{{ mode }} Configuration Type</h3>
+        <button 
+          (click)="onCancel()"
+          class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <form [formGroup]="confTypeForm" (ngSubmit)="onSubmit()" class="p-6">
+        <div class="space-y-4">
+          <!-- Configuration Type -->
+          <div>
+            <label for="configType" class="block text-sm font-medium text-gray-700 mb-1">
+              Configuration Type
+            </label>
+            <input
+              id="configType"
+              type="text"
+              formControlName="configType"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              [class.border-red-500]="confTypeForm.get('configType')?.invalid && confTypeForm.get('configType')?.touched">
+            <p 
+              *ngIf="confTypeForm.get('configType')?.invalid && confTypeForm.get('configType')?.touched"
+              class="mt-1 text-sm text-red-600">
+              Configuration Type is required
+            </p>
+          </div>
+
+          <!-- mmlCommandNamePrefix -->
+          <div>
+            <label for="mmlCommandNamePrefix" class="block text-sm font-medium text-gray-700 mb-1">
+              MML Command Name Prefix
+            </label>
+            <input
+              id="mmlCommandNamePrefix"
+              type="text"
+              formControlName="mmlCommandNamePrefix"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              [class.border-red-500]="confTypeForm.get('mmlCommandNamePrefix')?.invalid && confTypeForm.get('mmlCommandNamePrefix')?.touched">
+            <p 
+              *ngIf="confTypeForm.get('mmlCommandNamePrefix')?.invalid && confTypeForm.get('mmlCommandNamePrefix')?.touched"
+              class="mt-1 text-sm text-red-600">
+              MML Command Name Prefix is required
+            </p>
+          </div>
+
+          <!-- configTypeId -->
+          <div>
+            <label for="configTypeId" class="block text-sm font-medium text-gray-700 mb-1">
+              Configuration Type ID
+            </label>
+            <input
+              id="configTypeId"
+              type="text"
+              formControlName="configTypeId"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              [class.border-red-500]="confTypeForm.get('configTypeId')?.invalid && confTypeForm.get('configTypeId')?.touched">
+            <p 
+              *ngIf="confTypeForm.get('configTypeId')?.invalid && confTypeForm.get('configTypeId')?.touched"
+              class="mt-1 text-sm text-red-600">
+              Configuration Type ID is required
+            </p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200" *ngIf="mode !== 'view'">
+          <button
+            type="button"
+            (click)="onCancel()"
+            class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            [disabled]="confTypeForm.invalid"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200">
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

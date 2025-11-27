@@ -3,6 +3,7 @@ import { Component, inject, OnInit } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouteService } from '../../core/services/route/route.service';
+import { ENodeBTreeComponent } from './enodeb-tree/enodeb-tree';
 
 @Component({
     imports: [
@@ -10,6 +11,7 @@ import { RouteService } from '../../core/services/route/route.service';
         RouterModule,
         FormsModule,
         ReactiveFormsModule,
+        ENodeBTreeComponent
     ],
     selector: 'config',
     templateUrl: 'config.html',
