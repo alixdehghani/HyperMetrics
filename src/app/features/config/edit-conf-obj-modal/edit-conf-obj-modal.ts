@@ -1,5 +1,5 @@
 // components/modals/edit-header-modal/edit-header-modal.component.ts
-import { Component, Input, Output, EventEmitter, OnInit, input } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, input, inject } from '@angular/core';
 
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormArray } from '@angular/forms';
 import { ConfigObj, ConfigObjType } from '../enodeb-config.model';
@@ -12,6 +12,9 @@ import { ENodeBTreeService } from '../enodeb-tree.service';
   templateUrl: 'edit-conf-obj-modal.html'
 })
 export class EditConfObjModalComponent implements OnInit {
+  private fb = inject(FormBuilder);
+  private treeService = inject(ENodeBTreeService);
+
   @Input() config: ConfigObj | null = null;
   @Input() path: number[] = [];
   @Input() mode!: 'edit' | 'view' | 'create';
@@ -20,10 +23,10 @@ export class EditConfObjModalComponent implements OnInit {
 
   confObjForm!: FormGroup;
 
-  constructor(
-    private fb: FormBuilder,
-    private treeService: ENodeBTreeService
-  ) { }
+  /** Inserted by Angular inject() migration for backwards compatibility */
+  constructor(...args: unknown[]);
+
+  constructor() { }
 
   ngOnInit(): void {
     if (this.mode === 'edit' && !this.config) {

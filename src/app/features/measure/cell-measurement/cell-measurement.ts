@@ -25,6 +25,8 @@ import { RouteService } from '../../../core/services/route/route.service';
   templateUrl: './cell-measurement.html',
 })
 export class CellMeasurementComponent implements OnInit, OnDestroy {
+  private fb = inject(FormBuilder);
+
   expandedSections: { [key: string]: boolean } = {};
   searchTerm: string = '';
   editingCounterName: { [key: string]: boolean } = {};
@@ -73,7 +75,10 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   allCounters: Counter[] = [];
   allKpis: KPI[] = [];
   allMeasureObjs: MeasureObj[] = [];
-  constructor(private fb: FormBuilder) {
+
+  /** Inserted by Angular inject() migration for backwards compatibility */
+  constructor(...args: unknown[]);
+  constructor() {
     this.measureObjTypeId = this._route.snapshot.paramMap.get('typeId') || '';
     this.units = UNITS;
 

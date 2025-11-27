@@ -26,6 +26,8 @@ import { EditConfObjParamModalComponent } from '../edit-conf-obj-param-modal/edi
     styleUrls: ['./enodeb-tree.scss']
 })
 export class ENodeBTreeComponent implements OnInit, OnDestroy {
+    private treeService = inject(ENodeBTreeService);
+
     config: ENodeBConfig | null = null;
     showHeaderModal = false;
 
@@ -45,7 +47,10 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
     mode!: 'edit' | 'view' | 'create';
     private httpClient = inject(HttpClient);
     private $destroy = new Subject<void>();
-    constructor(private treeService: ENodeBTreeService) { }
+
+    /** Inserted by Angular inject() migration for backwards compatibility */
+    constructor(...args: unknown[]);
+    constructor() { }
     ngOnDestroy(): void {
         this.$destroy.next();
         this.$destroy.complete();

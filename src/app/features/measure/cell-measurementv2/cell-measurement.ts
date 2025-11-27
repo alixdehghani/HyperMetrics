@@ -64,6 +64,8 @@ interface MeasureObj {
   templateUrl: './cell-measurement.html',
 })
 export class CellMeasurementComponentV2 implements OnInit, OnDestroy {
+  private fb = inject(FormBuilder);
+
   expandedSections: { [key: string]: boolean } = {};
   viewMode: 'ui' | 'json' = 'ui';
   searchTerm: string = '';
@@ -109,7 +111,10 @@ export class CellMeasurementComponentV2 implements OnInit, OnDestroy {
   form: FormGroup;
   private _route = inject(ActivatedRoute);
   private formulaParser = inject(FormulaParserService);
-  constructor(private fb: FormBuilder) {
+
+  /** Inserted by Angular inject() migration for backwards compatibility */
+  constructor(...args: unknown[]);
+  constructor() {
     this.neTypeId = this._route.snapshot.paramMap.get('typeId') || '';
     this.neVersion = this._route.snapshot.data['neVersion'] || '';
     this.neTypeName = this._route.snapshot.data['neTypeName'] || '';
