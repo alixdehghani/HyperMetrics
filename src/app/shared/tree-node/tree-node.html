@@ -81,8 +81,7 @@
         @for (configObj of node().configObjList; track configObj; let i = $index) {
           <app-tree-node [node]="configObj"
             [nodeType]="'configObj'" [path]="getCopyArray(path(), i)" [isLast]="i === node().configObjList.length - 1"
-            (edit)="onEdit($event)" (delete)="onDelete()" (add)="onAdd($event)" (view)="onView($event)">
-          </app-tree-node>
+            (edit)="onEdit($event)" (delete)="onDelete()" (add)="onAdd($event)" (view)="onView($event)" />
         }
       }
       <!-- OperationTypes and Params Children -->
@@ -118,8 +117,7 @@
                                   <app-tree-node [node]="operation"
                                     [nodeType]="'operationType'" [path]="getCopyArray(path(), i)"
                                     [isLast]="i === node().operationTypes.length - 1" (edit)="onEdit($event)" (delete)="onDelete()"
-                                    (add)="onAdd($event)" (view)="onView($event)">
-                                  </app-tree-node>
+                                    (add)="onAdd($event)" (view)="onView($event)" />
                                 }
                               </div>
                             }
@@ -129,8 +127,7 @@
                                 @for (param of node().params; track param; let i = $index) {
                                   <app-tree-node [node]="param" [nodeType]="'param'"
                                     [path]="getCopyArray(path(), i)" [isLast]="i === node().params.length - 1" (edit)="onEdit($event)"
-                                    (delete)="onDelete()" (add)="onAdd($event)" (view)="onView($event)">
-                                  </app-tree-node>
+                                    (delete)="onDelete()" (add)="onAdd($event)" (view)="onView($event)" />
                                 }
                               </div>
                             }
@@ -140,8 +137,7 @@
                             @for (configObj of node().configObjList; track configObj; let i = $index) {
                               <app-tree-node [node]="configObj"
                                 [nodeType]="'configObj'" [path]="getCopyArray(path(), i)" [isLast]="i === node().configObjList.length - 1"
-                                (edit)="onEdit($event)" (delete)="onDelete()" (add)="onAdd($event)" (view)="onView($event)">
-                              </app-tree-node>
+                                (edit)="onEdit($event)" (delete)="onDelete()" (add)="onAdd($event)" (view)="onView($event)" />
                             }
                           }
                         </div>

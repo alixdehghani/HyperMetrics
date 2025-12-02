@@ -73,7 +73,7 @@ export class TreeNodeComponent {
         } else if (nodeType === 'configObj') {
             const node = this.node();
             return (node.operationTypes && node.operationTypes.length > 0) ||
-                (node.params && node.params.length > 0);
+                (node.params && node.params.length > 0) || (node.configObjList && node.configObjList.length > 0);
         }
         return false;
     }

@@ -41,8 +41,7 @@
         @if (config) {
           <div class="p-4">
             @for (configType of config.configObjTypeList; track configType; let i = $index) {
-              <app-tree-node
-                [node]="configType"
+              <app-tree-node [node]="configType"
                 [nodeType]="'configType'"
                 [path]="[i]"
                 [isLast]="i === config.configObjTypeList.length - 1"
@@ -50,8 +49,7 @@
                 (edit)="onEditNode($event)"
                 (delete)="onDeleteNode($event)"
                 (view)="onViewNode($event)"
-                >
-              </app-tree-node>
+                 />
             }
           </div>
         }
@@ -61,49 +59,39 @@
 
   <!-- Header Modal -->
   @if (showHeaderModal) {
-    <app-edit-header-modal
-      [config]="config"
-      (close)="closeHeaderModal()">
-    </app-edit-header-modal>
+    <app-edit-header-modal [config]="config"
+      (close)="closeHeaderModal()" />
   }
 
   <!-- Edit Config Type Modal -->
   @if (showConfTypeModal) {
-    <app-edit-conf-type-modal
-      [index]="path[0]"
+    <app-edit-conf-type-modal [index]="path[0]"
       [config]="confTypeModalData"
       [mode]="mode"
-      (close)="closeConfTypeModal()">
-    </app-edit-conf-type-modal>
+      (close)="closeConfTypeModal()" />
   }
 
   <!-- Edit Config Object Modal -->
   @if (showConfObjModal) {
-    <app-edit-conf-obj-modal
-      [config]="confObjModalData"
+    <app-edit-conf-obj-modal [config]="confObjModalData"
       [path]="path"
       [mode]="mode"
-      (close)="closeConfObjModal()">
-    </app-edit-conf-obj-modal>
+      (close)="closeConfObjModal()" />
   }
 
   <!-- Edit Operation Type Modal -->
   @if (showOperationTypeModal) {
-    <app-edit-conf-obj-operation-modal
-      [config]="operationTypeModalData"
+    <app-edit-conf-obj-operation-modal [config]="operationTypeModalData"
       [path]="path"
       [mode]="mode"
-      (close)="closeOperationTypeModal()">
-    </app-edit-conf-obj-operation-modal>
+      (close)="closeOperationTypeModal()" />
   }
 
   <!-- Edit Config Object Parameter Modal -->
   @if (showConfObjParamModal) {
-    <app-edit-conf-obj-param-modal
-      [config]="confObjParamModalData"
+    <app-edit-conf-obj-param-modal [config]="confObjParamModalData"
       [path]="path"
       [mode]="mode"
-      (close)="closeConfObjParamModal()">
-    </app-edit-conf-obj-param-modal>
+      (close)="closeConfObjParamModal()" />
   }
 </div>
