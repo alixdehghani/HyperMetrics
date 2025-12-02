@@ -1,20 +1,19 @@
 <!-- components/tree-node/tree-node.component.html -->
 <div class="tree-node" [class.last]="isLast()">
-  <div class="flex items-center py-2 px-3 hover:bg-gray-50 rounded-lg group transition-all duration-200"
-    (mouseenter)="showActions = true" (mouseleave)="showActions = false">
+  <div class="flex items-center py-2 px-3 hover:bg-gray-50 rounded-lg group transition-all duration-200">
 
     <!-- Expand/Collapse Button -->
     @if (hasChildren()) {
-      <button (click)="toggleExpand()"
-        class="mr-2 p-1 hover:bg-gray-200 rounded transition-colors duration-150 cursor-pointer">
-        <svg class="w-4 h-4 text-gray-600 transition-transform duration-200" [class.rotate-90]="isExpanded" fill="none"
-          stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-        </svg>
-      </button>
+    <button (click)="toggleExpand()"
+      class="mr-2 p-1 hover:bg-gray-200 rounded transition-colors duration-150 cursor-pointer">
+      <svg class="w-4 h-4 text-gray-600 transition-transform duration-200" [class.rotate-90]="isExpanded" fill="none"
+        stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+      </svg>
+    </button>
     }
     @if (!hasChildren()) {
-      <div class="w-6 mr-2"></div>
+    <div class="w-6 mr-2"></div>
     }
 
     <!-- Icon -->
@@ -24,25 +23,25 @@
     <span class="flex-1 text-sm font-medium text-gray-700">{{ getTitle() }}</span>
 
     <!-- Action Buttons -->
-    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-      [class.opacity-100]="showActions">
+    <div class="flex items-center gap-1">
 
       <button (click)="onView({type: nodeType(), path: path()})"
-        class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer" title="View">
+        class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer"
+        title="View">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
         </svg>
       </button>
 
-      <button (click)="onAdd({type: nodeType(), path: path()})"
-        class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer" title="Add">
+      <!-- <button (click)="onAdd({type: nodeType(), path: path()})"
+        class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer"
+        title="Add">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-      </button>
+      </button> -->
 
       <button (click)="onEdit({type: nodeType(), path: path()})"
         class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors duration-150 cursor-pointer" title="Edit">
@@ -52,8 +51,8 @@
         </svg>
       </button>
 
-      <button (click)="onDelete()" class="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors duration-150 cursor-pointer"
-        title="Delete">
+      <button (click)="onDelete()"
+        class="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors duration-150 cursor-pointer" title="Delete">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -64,82 +63,103 @@
 
   <!-- Children -->
   @if (isExpanded && hasChildren()) {
-    <div class="ml-6 border-l-2 border-gray-200 pl-4 mt-1">
-      <!-- ConfigObjList Children -->
-      @if (nodeType() === 'configType') {
-        <!-- <div class="mb-2">
-        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
-          class="text-xl mr-3">❕</span>Configuration Type: <span class="text-black">{{ node.configType }}</span></div>
-          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
-          class="text-xl mr-3">❕</span>MML
-          Command Name Prefix: <span class="text-black">{{ node.mmlCommandNamePrefix }}</span></div>
-          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
-            class="text-xl mr-3">❕</span>Configuration Type ID: <span class="text-black">{{ node.configTypeId }}</span>
-          </div>
-        </div>
-        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Config Objects</div> -->
-        @for (configObj of node().configObjList; track configObj; let i = $index) {
-          <app-tree-node [node]="configObj"
-            [nodeType]="'configObj'" [path]="getCopyArray(path(), i)" [isLast]="i === node().configObjList.length - 1"
-            (edit)="onEdit($event)" (delete)="onDelete()" (add)="onAdd($event)" (view)="onView($event)" />
-        }
-      }
-      <!-- OperationTypes and Params Children -->
-      @if (nodeType() === 'configObj') {
-        <!-- <div class="mb-2">
-        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
-          class="text-xl mr-3">❕</span>ConfigObjId: <span class="text-black">{{ node.configObjId }}</span></div>
-          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
-            class="text-xl mr-3">❕</span>dataName: <span class="text-black">{{ node.dataName }}</span></div>
-            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
-              class="text-xl mr-3">❕</span>title: <span class="text-black">{{ node.title }}</span></div>
-              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
-                class="text-xl mr-3">❕</span>parameterName: <span class="text-black">{{ node.parameterName }}</span></div>
-                <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
-                  class="text-xl mr-3">❕</span>abbreviation: <span class="text-black">{{ node.abbreviation }}</span></div>
-                  <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
-                    class="text-xl mr-3">❕</span>mmlCommandNamePosfix: <span class="text-black">{{ node.mmlCommandNamePosfix }}</span></div>
-                    <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
-                      class="text-xl mr-3">❕</span>className: <span class="text-black">{{ node.className }}</span></div>
-                      <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
-                        class="text-xl mr-3">❕</span>module: <span class="text-black">{{ node.module }}</span></div>
-                        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
-                          class="text-xl mr-3">❕</span>showInOSS: <span class="text-black">{{ node.showInOSS }}</span></div>
-                          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
-                            class="text-xl mr-3">❕</span>showInUI: <span class="text-black">{{ node.showInUI }}</span></div>
-                            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider "><span
-                              class="text-xl mr-3">❕</span>showInNavMenu: <span class="text-black">{{ node.showInNavMenue }}</span></div>
-                            </div> -->
-                            @if (node().operationTypes && node().operationTypes.length > 0) {
-                              <div class="mb-2">
-                                <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Operations</div>
-                                @for (operation of node().operationTypes; track operation; let i = $index) {
-                                  <app-tree-node [node]="operation"
-                                    [nodeType]="'operationType'" [path]="getCopyArray(path(), i)"
-                                    [isLast]="i === node().operationTypes.length - 1" (edit)="onEdit($event)" (delete)="onDelete()"
-                                    (add)="onAdd($event)" (view)="onView($event)" />
-                                }
-                              </div>
-                            }
-                            @if (node().params && node().params.length > 0) {
-                              <div>
-                                <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Parameters</div>
-                                @for (param of node().params; track param; let i = $index) {
-                                  <app-tree-node [node]="param" [nodeType]="'param'"
-                                    [path]="getCopyArray(path(), i)" [isLast]="i === node().params.length - 1" (edit)="onEdit($event)"
-                                    (delete)="onDelete()" (add)="onAdd($event)" (view)="onView($event)" />
-                                }
-                              </div>
-                            }
-                          }
-                          @if (nodeType() === 'configObj' && node().configObjList && node().configObjList.length > 0) {
-                            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Config Objects</div>
-                            @for (configObj of node().configObjList; track configObj; let i = $index) {
-                              <app-tree-node [node]="configObj"
-                                [nodeType]="'configObj'" [path]="getCopyArray(path(), i)" [isLast]="i === node().configObjList.length - 1"
-                                (edit)="onEdit($event)" (delete)="onDelete()" (add)="onAdd($event)" (view)="onView($event)" />
-                            }
-                          }
-                        </div>
-                      }
-                    </div>
+  <div class="ml-6 border-l-2 border-gray-200 pl-4 mt-1">
+    <!-- ConfigObjList Children -->
+    @if (nodeType() === 'configType') {
+    <div class="flex justify-between items-center hover:bg-gray-100 py-2 px-3 rounded-lg">
+      <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Configuration Objects</div>
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-1">
+        <button (click)="onAdd({type: 'configObj', path: path()})"
+          class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer"
+          title="Add new Configuration Object">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
+    </div>
+    @for (configObj of node().configObjList; track configObj; let i = $index) {
+    <app-tree-node [node]="configObj" [nodeType]="'configObj'" [path]="getCopyArray(path(), i)"
+      [isLast]="i === node().configObjList.length - 1" (edit)="onEdit($event)" (delete)="onDelete()"
+      (add)="onAdd($event)" (view)="onView($event)" />
+    }
+    }
+    <!-- OperationTypes and Params Children -->
+    @if (nodeType() === 'configObj') {
+    <div class="flex justify-between items-center hover:bg-gray-100 py-2 px-3 rounded-lg">
+      <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Operations</div>
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-1">
+        <button (click)="onAdd({type: 'operationType', path: path()})"
+          class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer"
+          title="Add new operation">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
+    </div>
+    @if (node().operationTypes && node().operationTypes.length > 0) {
+    @for (operation of node().operationTypes; track operation; let i = $index) {
+    <app-tree-node [node]="operation" [nodeType]="'operationType'" [path]="getCopyArray(path(), i)"
+      [isLast]="i === node().operationTypes.length - 1" (edit)="onEdit($event)" (delete)="onDelete()"
+      (add)="onAdd($event)" (view)="onView($event)" />
+    }
+    } @else {
+    <div class="text-gray-300 ml-2 px-3 rounded-lg">
+      No Operations added.
+    </div>
+    }
+    <div class="flex justify-between items-center hover:bg-gray-100 py-2 px-3 rounded-lg">
+      <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Parameters</div>
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-1 ">
+        <button (click)="onAdd({type: 'param', path: path()})"
+          class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer"
+          title="Add new parameter">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
+    </div>
+    @if (node().params && node().params.length > 0) {
+    @for (param of node().params; track param; let i = $index) {
+    <app-tree-node [node]="param" [nodeType]="'param'" [path]="getCopyArray(path(), i)"
+      [isLast]="i === node().params.length - 1" (edit)="onEdit($event)" (delete)="onDelete()" (add)="onAdd($event)"
+      (view)="onView($event)" />
+    }
+    } @else {
+    <div class="text-gray-300 ml-2 px-3 rounded-lg">
+      No Parameters added.
+    </div>
+    }
+    }
+    <div class="flex justify-between items-center hover:bg-gray-100 py-2 px-3 rounded-lg">
+      <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Configuration Objects</div>
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-1">
+        <button (click)="onAdd({type: 'configObj', path: path()})"
+          class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer"
+          title="Add new Configuration Object">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
+    </div>
+    @if (nodeType() === 'configObj' && node().configObjList && node().configObjList.length > 0) {
+    @for (configObj of node().configObjList; track configObj; let i = $index) {
+    <app-tree-node [node]="configObj" [nodeType]="'configObj'" [path]="getCopyArray(path(), i)"
+      [isLast]="i === node().configObjList.length - 1" (edit)="onEdit($event)" (delete)="onDelete()"
+      (add)="onAdd($event)" (view)="onView($event)" />
+    }
+    } @else {
+    <div class="text-gray-300 ml-2 px-3 rounded-lg">
+      No Configuration Objects added.
+    </div>
+    }
+  </div>
+  }
+</div>

@@ -1,7 +1,7 @@
 // components/modals/edit-header-modal/edit-header-modal.component.ts
 import { Component, OnInit, inject, input, output } from '@angular/core';
 
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormArray } from '@angular/forms';
 import { Parameter } from '../enodeb-config.model';
 import { ENodeBTreeService } from '../enodeb-tree.service';
 
@@ -28,7 +28,7 @@ export class EditConfObjParamModalComponent implements OnInit {
 
   constructor() { }
 
-  ngOnInit(): void {    
+  ngOnInit(): void {
     const mode = this.mode();
     const config = this.config();
     if (mode === 'edit' && !config) {
@@ -44,14 +44,14 @@ export class EditConfObjParamModalComponent implements OnInit {
       parameterName: [config?.parameterName || '', Validators.required],
       abbreviation: [config?.abbreviation || '', Validators.required],
       name: [config?.name || '', Validators.required],
-      unit: [config?.unit || '', Validators.required],
-      defaultValue: [config?.defaultValue || '', Validators.required],
+      unit: [config?.unit || ''],
+      defaultValue: [config?.defaultValue || ''],
       type: [config?.type || '', Validators.required],
-      validation: [config?.validation || '', Validators.required],
-      uiValidation: [config?.uiValidation || '', Validators.required],
-      filter: [config?.filter || '', Validators.required],
-      modetype: [config?.modetype || '', Validators.required],
-      showOn: [config?.showOn || '', Validators.required],
+      validation: [config?.validation || ''],
+      uiValidation: [config?.uiValidation || ''],
+      filter: this.fb.array(config?.filter || []),
+      modeType: [config?.modeType || '', Validators.required],
+      showOn: [config?.showOn || ''],
       isEditable: [config?.isEditable || false, Validators.required],
       showInWizard: [config?.showInWizard || false, Validators.required],
       showInOSS: [config?.showInOSS || false, Validators.required],
@@ -67,11 +67,11 @@ export class EditConfObjParamModalComponent implements OnInit {
 
   onSubmit(): void {
     if (this.confObjParamForm.valid) {
-      const { id, dataName, title, parameterName, abbreviation, name, unit, defaultValue, type, validation, uiValidation, filter, modetype, showOn, isEditable, showInWizard, showInOSS, showInUI, isPrimaryKey, required, isEnabled } = this.confObjParamForm.value;
+      const { id, dataName, title, parameterName, abbreviation, name, unit, defaultValue, type, validation, uiValidation, filter, modeType, showOn, isEditable, showInWizard, showInOSS, showInUI, isPrimaryKey, required, isEnabled } = this.confObjParamForm.value;
       if (this.mode() === 'create') {
-        this.treeService.addParameter(this.path(), { id, dataName, title, parameterName, abbreviation, name, unit, defaultValue, type, validation, uiValidation, filter, modetype, showOn, isEditable, showInWizard, showInOSS, showInUI, isPrimaryKey, required, isEnabled });
+        this.treeService.addParameter(this.path(), { id, dataName, title, parameterName, abbreviation, name, unit, defaultValue, type, validation, uiValidation, filter, modeType, showOn, isEditable, showInWizard, showInOSS, showInUI, isPrimaryKey, required, isEnabled });
       } else {
-        this.treeService.updateParameter(this.path(), { id, dataName, title, parameterName, abbreviation, name, unit, defaultValue, type, validation, uiValidation, filter, modetype, showOn, isEditable, showInWizard, showInOSS, showInUI, isPrimaryKey, required, isEnabled });
+        this.treeService.updateParameter(this.path(), { id, dataName, title, parameterName, abbreviation, name, unit, defaultValue, type, validation, uiValidation, filter, modeType, showOn, isEditable, showInWizard, showInOSS, showInUI, isPrimaryKey, required, isEnabled });
       }
       // TODO: The 'emit' function requires a mandatory void argument
       this.close.emit();
@@ -81,5 +81,24 @@ export class EditConfObjParamModalComponent implements OnInit {
   onCancel(): void {
     // TODO: The 'emit' function requires a mandatory void argument
     this.close.emit();
+  }
+
+  get filter(): FormArray {
+    return this.confObjParamForm.get('filter') as FormArray;
+  }
+
+  newParam(text: string = '', value: string = ''): FormGroup {
+    return this.fb.group({
+      text: [text, Validators.required],
+      value: [value, Validators.required]
+    });
+  }
+
+  addFilter(text: string = '', value: string = '') {
+    this.filter.push(this.newParam(text, value));
+  }
+
+  removeParam(index: number) {
+    this.filter.removeAt(index);
   }
 }

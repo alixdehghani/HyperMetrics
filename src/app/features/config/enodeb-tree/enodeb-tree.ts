@@ -11,17 +11,19 @@ import { EditConfObjModalComponent } from '../edit-conf-obj-modal/edit-conf-obj-
 import { Subject, takeUntil } from 'rxjs';
 import { EditConfObjOperationModalComponent } from '../edit-conf-obj-operation-modal/edit-conf-obj-operation-modal';
 import { EditConfObjParamModalComponent } from '../edit-conf-obj-param-modal/edit-conf-obj-param-modal';
+import { FormsModule } from '@angular/forms';
 
 @Component({
     selector: 'enodeb-tree',
     imports: [
-    TreeNodeComponent,
-    EditHeaderModalComponent,
-    EditConfTypeModalComponent,
-    EditConfObjModalComponent,
-    EditConfObjOperationModalComponent,
-    EditConfObjParamModalComponent
-],
+        FormsModule,
+        TreeNodeComponent,
+        EditHeaderModalComponent,
+        EditConfTypeModalComponent,
+        EditConfObjModalComponent,
+        EditConfObjOperationModalComponent,
+        EditConfObjParamModalComponent
+    ],
     templateUrl: './enodeb-tree.html',
     styleUrls: ['./enodeb-tree.scss']
 })
@@ -45,6 +47,7 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
 
     path: number[] = [];
     mode!: 'edit' | 'view' | 'create';
+    searchTerm = '';
     private httpClient = inject(HttpClient);
     private $destroy = new Subject<void>();
 
@@ -103,8 +106,8 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
 
     onViewNode(output: { type: TreeNodeType, path: number[] }): void {
         this.path = output.path;
-        this.mode = 'view';       
-        
+        this.mode = 'view';
+
         if (output.type === 'configType') {
             this.confTypeModalData = this.config?.configObjTypeList[output.path[0]] || null;
             this.showConfTypeModal = true;
@@ -169,7 +172,7 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
                 if (parent) {
                     parent.params = parent.params || [];
                     this.confObjParamModalData = parent.params[output.path[output.path.length - 1]];
-                }                                
+                }
                 this.showConfObjParamModal = true;
             }
         }

@@ -48,12 +48,11 @@ export interface Parameter {
     name: string;
     unit: string | null;
     defaultValue: string;
-    type: string;
+    type: 'Integer' | 'OctetString' | 'Float';
     validation: string | null;
     uiValidation: string | null;
     filter: FilterOption[];
-    modetype?: string;
-    modeType?: string;
+    modeType: string;
     showOn: any;
     isEditable: boolean;
     showInWizard: boolean;

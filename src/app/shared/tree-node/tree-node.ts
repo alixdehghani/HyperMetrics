@@ -1,7 +1,7 @@
 // components/tree-node/tree-node.component.ts
-import { Component, input, output, output as output_1 } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 
-import { ConfigObjType, ConfigObj, OperationType, Parameter, TreeNodeType } from '../../features/config/enodeb-config.model';
+import { TreeNodeType } from '../../features/config/enodeb-config.model';
 
 @Component({
     selector: 'app-tree-node',
@@ -33,7 +33,6 @@ export class TreeNodeComponent {
 }>();
 
     isExpanded = false;
-    showActions = false;
 
     toggleExpand(): void {
         this.isExpanded = !this.isExpanded;
@@ -68,12 +67,14 @@ export class TreeNodeComponent {
     hasChildren(): boolean {
         const nodeType = this.nodeType();
         if (nodeType === 'configType') {
-            const node = this.node();
-            return node.configObjList && node.configObjList.length > 0;
+            // const node = this.node();
+            return true;
+            // return node.configObjList && node.configObjList.length > 0;
         } else if (nodeType === 'configObj') {
             const node = this.node();
-            return (node.operationTypes && node.operationTypes.length > 0) ||
-                (node.params && node.params.length > 0) || (node.configObjList && node.configObjList.length > 0);
+            return true;
+            // return (node.operationTypes && node.operationTypes.length > 0) ||
+            //     (node.params && node.params.length > 0) || (node.configObjList && node.configObjList.length > 0);
         }
         return false;
     }
