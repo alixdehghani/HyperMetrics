@@ -8,15 +8,16 @@ import { ConfigObj, ConfigObjType, ENodeBConfig, OperationType, Parameter, TreeN
 import { HttpClient } from '@angular/common/http';
 import { EditConfTypeModalComponent } from '../edit-conf-type-modal/edit-conf-type-modal';
 import { EditConfObjModalComponent } from '../edit-conf-obj-modal/edit-conf-obj-modal';
-import { Subject, takeUntil } from 'rxjs';
+import { debounceTime, distinctUntilChanged, Subject, takeUntil } from 'rxjs';
 import { EditConfObjOperationModalComponent } from '../edit-conf-obj-operation-modal/edit-conf-obj-operation-modal';
 import { EditConfObjParamModalComponent } from '../edit-conf-obj-param-modal/edit-conf-obj-param-modal';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 @Component({
     selector: 'enodeb-tree',
     imports: [
         FormsModule,
+        ReactiveFormsModule,
         TreeNodeComponent,
         EditHeaderModalComponent,
         EditConfTypeModalComponent,
@@ -48,6 +49,7 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
     path: number[] = [];
     mode!: 'edit' | 'view' | 'create';
     searchTerm = '';
+    searchControl = new FormControl('');
     private httpClient = inject(HttpClient);
     private $destroy = new Subject<void>();
 
@@ -64,12 +66,16 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
         this.httpClient.get('HyperConfig.json').subscribe(res => {
             this.treeService.setConfig(res as ENodeBConfig);
 
-        })
+        });
 
 
         this.treeService.config$.pipe(takeUntil(this.$destroy)).subscribe(config => {
             this.config = config;
         });
+
+        this.searchControl.valueChanges
+            .pipe(debounceTime(500), distinctUntilChanged(), takeUntil(this.$destroy))
+            .subscribe(term => this.searchTerm = term || '');
     }
 
     openHeaderModal(): void {
@@ -105,8 +111,14 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
     }
 
     onViewNode(output: { type: TreeNodeType, path: number[] }): void {
+        console.log(output);
+
         this.path = output.path;
         this.mode = 'view';
+
+        if (output.type === 'root') {
+            this.openHeaderModal();
+        }
 
         if (output.type === 'configType') {
             this.confTypeModalData = this.config?.configObjTypeList[output.path[0]] || null;
@@ -182,12 +194,14 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
     onAddNode(output: { type: TreeNodeType, path: number[] }): void {
         this.path = output.path;
         this.mode = 'create';
-        console.log('Add node event received:', output.type, output.path);
         if (output.type === 'root') {
+            return;
+        }
+        if (output.type === 'configType') {
             this.confTypeModalData = null;
             this.showConfTypeModal = true;
         }
-        if (output.type === 'configType' || output.type === 'configObj') {
+        if (output.type === 'configObj') {
             this.showConfObjModal = true;
             this.confObjModalData = null;
         }
@@ -205,6 +219,11 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
     onEditNode(output: { type: TreeNodeType, path: number[] }): void {
         this.path = output.path;
         this.mode = 'edit';
+
+        if (output.type === 'root') {
+            this.openHeaderModal();
+        }
+
         if (output.type === 'configType') {
             this.confTypeModalData = this.config?.configObjTypeList[output.path[0]] || null;
             this.showConfTypeModal = true;

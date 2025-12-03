@@ -16,6 +16,7 @@ export class EditHeaderModalComponent implements OnInit {
   private treeService = inject(ENodeBTreeService);
 
   readonly config = input<ENodeBConfig | null>(null);
+  readonly mode = input.required<'edit' | 'view' | 'create'>();
   readonly close = output<void>();
 
   headerForm!: FormGroup;
@@ -26,11 +27,20 @@ export class EditHeaderModalComponent implements OnInit {
   constructor() {}
 
   ngOnInit(): void {
+    if (this.mode() === 'edit' && !this.config()) {
+      alert('Invalid config provided to EditConfModalComponent');
+      // TODO: The 'emit' function requires a mandatory void argument
+      this.close.emit();
+      return;
+    }
     this.headerForm = this.fb.group({
       neVersion: [this.config()?.neVersion || '', Validators.required],
       neTypeId: [this.config()?.neTypeId || '', Validators.required],
       neTypeName: [this.config()?.neTypeName || '', Validators.required]
     });
+    if (this.mode() === 'view') {
+      this.headerForm.disable();
+    }
   }
 
   onSubmit(): void {
