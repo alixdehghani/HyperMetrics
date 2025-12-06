@@ -166,9 +166,8 @@ export class TreeNodeComponent {
         this.edit.emit(output);
     }
 
-    onDelete(): void {
-        console.log('Delete:', this.nodeType(), this.path());
-        // Confirm and delete
+    onDelete(output: { type: TreeNodeType, path: number[] }): void {
+        this.delete.emit(output);
     }
 
     getCopyArray(array: any[], item: any, item2: any = null): any[] {
