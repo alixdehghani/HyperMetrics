@@ -55,6 +55,9 @@ export class EditConfObjModalComponent implements OnInit {
     if (mode === 'view') {
       this.confObjForm.disable();
     }
+    if (mode === 'create') {
+      this.confObjForm.get('configObjId')?.setValue(this.treeService.generateNewIdForConfigObj(this.path()))
+    }
   }
 
   onSubmit(): void {

@@ -50,6 +50,9 @@ export class EditConfTypeModalComponent implements OnInit {
     if (mode === 'view') {
       this.confTypeForm.disable();
     }
+    if(mode === 'create') {
+      this.confTypeForm.get('configTypeId')?.setValue(this.treeService.generateNewIdForConfigType())
+    }
   }
 
   onSubmit(): void {

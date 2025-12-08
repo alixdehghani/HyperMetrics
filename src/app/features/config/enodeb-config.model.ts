@@ -69,3 +69,65 @@ export interface FilterOption {
 }
 
 export type TreeNodeType = 'root' | 'configType' | 'configObj' | 'operationType' | 'param';
+
+export interface SettingItem {
+  dataName: string;
+  show: boolean;
+  parameterName: string; // or Title
+  abbreviation: string;
+  parentAbbreviationNames: string[];
+  parentDataNames: string[];
+  isEditable: boolean;
+  hasParam: boolean;
+  showInNavMenue?: boolean; // Specific to ConfigObj
+  showInWizard?: boolean;   // Specific to Parameter
+  inputType?: 'select' | 'number' | 'text' | 'boolean';
+  metaData?: any; // Can be array of options or min/max object
+}
+
+export interface ConfMapEntry {
+  category: string;
+  class_name: string;
+  operation_types: string[];
+  node_path: string;
+  filter: string; // Comma-separated parameter dataNames
+}
+
+export interface ConfMapConfig {
+  [key: string]: ConfMapEntry;
+}
+
+// Target Interfaces
+export interface ICommand {
+  module: string;
+  id: string;
+  pmoName: string; // Mapped from className
+  name: string;    // Mapped from dataName
+  title: string;
+  commands: {
+    msgId: string;
+    name: string;
+    code: string;
+    type: string;
+    title: string;
+    isDangerous: boolean;
+    params: ICommandParams[];
+  }[];
+}
+
+export interface ICommandParams {
+  id: string;
+  name: string;
+  title: string;
+  isPrimaryKey: boolean;
+  required: boolean;
+  isEnabled: boolean;
+  unit: string | null;
+  defaultValue: string;
+  type: string;
+  validation: string;
+  uiValidation: string;
+  filter: any[];
+  modeType: string;
+  showOn: string | null;
+}

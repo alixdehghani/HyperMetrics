@@ -56,6 +56,36 @@ export class ENodeBTreeService {
     }
   }
 
+  generateNewIdForConfigType(): string {
+    const config = this.getConfig();
+    if (!config || !Array.isArray(config.configObjTypeList) || config.configObjTypeList.length === 0) {
+      return '101';
+    }
+
+    let maxId = 0;
+    for (const ct of config.configObjTypeList) {
+      const raw = (ct as any).id ?? (ct as any).configTypeId ?? (ct as any).typeId ?? (ct as any).name;
+      if (raw == null) continue;
+
+      let num = 0;
+      if (typeof raw === 'number') {
+        num = raw;
+      } else if (typeof raw === 'string') {
+        // extract leading/trailing digits (handles values like "3", "CT-3", "type_4")
+        const m = raw.match(/(\d+)/g);
+        if (m) {
+          // take the last numeric group to handle cases like "CT-3-v2"
+          const parsed = parseInt(m[m.length - 1], 10);
+          if (!isNaN(parsed)) num = parsed;
+        }
+      }
+
+      if (num > maxId) maxId = num;
+    }
+
+    return String(maxId + 1);
+  }
+
   // ConfigObj CRUD
   addConfigObj(path: number[], configObj: ConfigObj): void {
     const config = this.getConfig();
@@ -117,6 +147,47 @@ export class ENodeBTreeService {
       config.configObjTypeList[configTypeIndex].configObjList.splice(configObjIndex, 1);
       this.configSubject.next({ ...config });
     }
+  }
+
+  generateNewIdForConfigObj(path: number[]): string {
+    const config = this.getConfig();
+    if (!config || path.length === 0) {
+      return '101';
+    }
+
+    const type = config.configObjTypeList[path[0]];
+    if (!type) {
+      return '101';
+    }
+
+    let maxNum = 100;
+
+    const traverse = (list: any[] | undefined) => {
+      if (!Array.isArray(list)) return;
+      for (const obj of list) {
+        if (!obj) continue;
+        const raw = (obj as any).id ?? (obj as any).configObjId ?? (obj as any).objId ?? (obj as any).name ?? '';
+        if (raw != null) {
+          const s = String(raw);
+            const m = s.match(/(\d+)/g);
+            if (m) {
+              const parsed = parseInt(m[m.length - 1], 10);
+              if (!isNaN(parsed) && parsed > maxNum) {
+                maxNum = parsed;
+              }
+            }
+        }
+        if (obj.configObjList) {
+          traverse(obj.configObjList);
+        }
+      }
+    };
+
+    traverse(type.configObjList);
+
+    const next = Math.max(101, maxNum + 1);  
+    
+    return `${String(next)}`;
   }
 
   // OperationType CRUD
