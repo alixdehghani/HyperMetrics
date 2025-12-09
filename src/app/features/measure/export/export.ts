@@ -140,7 +140,7 @@ export class MeasureExport {
                     "counterList": mObj.counterList.map(c => c.id),
                     "kpiList": mObj.kpiList.map(k => ({
                         "kpiId": parseInt(k.kpiId),
-                        "kpiCounterList": this.measureService.getKpiCounterList(k),
+                        "kpiCounterList": this.measureService.getKpiCounterList(k).join(','),
                         "formula": this.measureService.convertFormula(k.formula)
                     }))
                 }))

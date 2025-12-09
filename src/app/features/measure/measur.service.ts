@@ -318,7 +318,7 @@ export class MeasurService {
             }
             return `${id}`
         } else {
-            return `1001`;
+            return `8001`;
         }
     }
 
@@ -346,7 +346,7 @@ export class MeasurService {
             }
             return `${id}`;
         } else {
-            return `110001`;
+            return `11001`;
         }
     }
 

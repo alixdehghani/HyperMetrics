@@ -1,1 +1,1 @@
-export const UNITS = ['percent', 'number', 'times', 'Mbps', 'bps', 'dBm', 'GB', 'bits', 'dB', 'hour', 'ms', '100ms', 's', 'µs', 'Bytes', 'bps/Hz'];
+export const UNITS = ['percent', 'number', 'times', 'Mbps', 'MB', 'bps', 'dBm', 'GB', 'bits', 'dB', 'hour', 'ms', '100ms', 's', 'minutes', 'µs', 'Bytes', 'bps/Hz'];
