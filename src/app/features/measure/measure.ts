@@ -56,7 +56,6 @@ export class Measure implements OnInit {
         const reader = new FileReader();
         reader.onload = (e: any) => {
             try {
-                debugger
                 const data = JSON.parse(e.target.result);
                 this.measureObject = data;
                 this.measurementsData = [...data.ratTypeList.flatMap((ret: any) => ret.measureObjTypeList)];

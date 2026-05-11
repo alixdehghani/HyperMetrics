@@ -3,6 +3,11 @@ export interface ENodeBConfig {
     neVersion: string;
     neTypeId: string;
     neTypeName: string;
+    ratTypeList: RatType[];
+}
+export interface RatType {
+    ratTypeId: string;
+    ratTypeName: string;
     configObjTypeList: ConfigObjType[];
 }
 
