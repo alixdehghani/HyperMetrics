@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { MeasureObj, MeasureObjType, MeasureType } from '../../core/interfaces/measures.interfaces';
+import { MeasureObj, MeasureObjType, MeasureType, RatType } from '../../core/interfaces/measures.interfaces';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MeasurService } from './measur.service';
 import { MeasureExport } from './export/export';
@@ -56,9 +56,10 @@ export class Measure implements OnInit {
         const reader = new FileReader();
         reader.onload = (e: any) => {
             try {
+                debugger
                 const data = JSON.parse(e.target.result);
                 this.measureObject = data;
-                this.measurementsData = [...data.measureObjTypeList];
+                this.measurementsData = [...data.ratTypeList.flatMap((ret: any) => ret.measureObjTypeList)];
                 this._initial();
                 this._normalizeData();
             } catch (err) {
@@ -73,13 +74,13 @@ export class Measure implements OnInit {
         const savedJson = this._measureService.getMeasureObject()
         if (savedJson) {
             this.measureObject = savedJson;
-            this.measureObject.measureObjTypeList.forEach((measureObjData) => {
+            this.measureObject.ratTypeList.flatMap(ret => ret.measureObjTypeList).forEach((measureObjData) => {
                 const savedMeasureJson = this._measureService.getMeasureTypeById(measureObjData.measureObjTypeId)
                 if (savedMeasureJson) {
                     Object.assign(measureObjData, savedMeasureJson);
                 }
             });
-            this.measurementsData = this.measureObject.measureObjTypeList;
+            this.measurementsData = this.measureObject.ratTypeList.flatMap(ret => ret.measureObjTypeList);
             this.showRestoreBanner = false;
             this._normalizeData();
         }
@@ -98,12 +99,11 @@ export class Measure implements OnInit {
         return measureObj.kpiList.length;
     }
 
-    deleteMeasure(measure: MeasureObjType) {
+    deleteMeasure(ratType: RatType, measure: MeasureObjType) {
         const confirmed = confirm(`Are you sure you want to delete the measure "${measure.measureType}"? This action cannot be undone.`);
         if (!confirmed) return;
-
         // remove any per-measure localStorage entry
-        this._measureService.removeTypeObjFromStorageById(measure.measureObjTypeId)
+        this._measureService.removeTypeObjFromStorageById(ratType.ratTypeId, measure.measureObjTypeId)
         this.measurementsData.splice(this.measurementsData.indexOf(measure), 1);
         this._normalizeData();
     }
@@ -134,7 +134,7 @@ export class Measure implements OnInit {
         this.addingNewMeasure = true;
     }
 
-    confirmAddNewMeasure() {
+    confirmAddNewMeasure(rat: RatType) {
         if (!this.newMeasureForm) return;
         if (this.newMeasureForm.invalid) {
             alert("Please fill in all required fields for the new measure ect.");
@@ -146,14 +146,14 @@ export class Measure implements OnInit {
             measureObjTypeId: this.newMeasureForm.value.measureObjTypeId
         };
         // Validate name uniqueness
-        const nameErrors = this._measureService.validateNewMeasureObjTypeName(newMeasur);
+        const nameErrors = this._measureService.validateNewMeasureObjTypeName(rat.ratTypeId, newMeasur);
         if (nameErrors.length > 0) {
             alert("❌ Invalid measure ect name or abbreviation:\n" + nameErrors.join('\n'));
             return;
         }
         // Validate ID uniqueness
         if (this.newMeasureForm.value.measureObjTypeId) {
-            const idErrors = this._measureService.validateNewMeasureObjTypeId(newMeasur);
+            const idErrors = this._measureService.validateNewMeasureObjTypeId(rat.ratTypeId, newMeasur);
             if (idErrors.length > 0) {
                 alert("❌ Invalid measure ect ID:\n" + idErrors.join('\n'));
                 return;
@@ -170,13 +170,13 @@ export class Measure implements OnInit {
         this.newMeasureForm = new FormGroup({});
     }
 
-    onMeasureTitleEditClick(measure: MeasureObjType) {
+    onMeasureTitleEditClick(rat: RatType, measure: MeasureObjType) {
         const newTitle = prompt("Enter new measure ect title:", measure.measureType);
         if (newTitle === null || newTitle.trim() === '') {
             return; // cancelled or empty
         }
         const tempMeasure = { ...measure, measureType: newTitle.trim() };
-        const nameErrors = this._measureService.validateNewMeasureObjTypeName(tempMeasure);
+        const nameErrors = this._measureService.validateNewMeasureObjTypeName(rat.ratTypeId, tempMeasure);
         if (nameErrors.length > 0) {
             alert("❌ Invalid measure ect name:\n" + nameErrors.join('\n'));
             return;
@@ -199,13 +199,13 @@ export class Measure implements OnInit {
     }
 
     private _initial(): void {
-        this.measureObject.measureObjTypeList.forEach(mobjt => mobjt.measureObjList.forEach(obj => {
-            obj.measureObjId = this._measureService.getMeasureObjId(obj, this.measureObject.measureObjTypeList)!
+        this.measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList).forEach(mobjt => mobjt.measureObjList.forEach(obj => {
+            obj.measureObjId = this._measureService.getMeasureObjId(obj, this.measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList))!
             obj.counterList.forEach(counter => {
-                counter.id = this._measureService.getCounterId(counter, this.measureObject.measureObjTypeList)!
+                counter.id = this._measureService.getCounterId(counter, this.measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList))!
             });
             obj.kpiList.forEach(kpi => {
-                kpi.kpiId = this._measureService.getKpiId(kpi, this.measureObject.measureObjTypeList)!;
+                kpi.kpiId = this._measureService.getKpiId(kpi, this.measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList))!;
             })
         }))
     }
@@ -228,9 +228,16 @@ export class Measure implements OnInit {
     private _saveToLocalStorage() {
         this.routeService.isLoadingRoute.set(true);
         requestIdleCallback(() => {
-            this.measurementsData.forEach((measureObjData) => {
-                this._measureService.addTypeObjIntoLocalStorageById(measureObjData.measureObjTypeId, measureObjData);
-            });
+            this.measureObject.ratTypeList.forEach(rat => {
+                this._measureService.addRatTypeIntoLocalStorageById(rat);
+                rat.measureObjTypeList.forEach(measureObjData => {
+                    this._measureService.addTypeObjIntoLocalStorageById(rat.ratTypeId, measureObjData.measureObjTypeId, measureObjData);
+                })
+            })
+            // this.measurementsData.forEach((measureObjData) => {
+            //     const ratid = this.measureObject.ratTypeList.find(rat => rat.measureObjTypeList.some(o => o.measureObjTypeId === measureObjData.measureObjTypeId))?.ratTypeId || '';
+            //     this._measureService.addTypeObjIntoLocalStorageById(ratid, measureObjData.measureObjTypeId, measureObjData);
+            // });
             this._measureService.saveMainObjectIntoLocalStorage(this.measureObject);
             this.routeService.isLoadingRoute.set(false);
         });

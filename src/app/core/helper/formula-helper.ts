@@ -15,7 +15,7 @@ export class FormulaParserService {
    * Tokenize formula string
    */
   tokenize(formula: string): string[] {
-    return formula.match(/\d+(\.\d+)?|[a-zA-Z_][a-zA-Z0-9_]*|[+\-*/()]/g) || [];
+    return formula.match(/\d+(\.\d+)?|[a-zA-Z_][a-zA-Z0-9_:]*|[+\-*/()]/g) || [];
   }
 
   /**
@@ -53,9 +53,9 @@ export class FormulaParserService {
   /**
    * Validate formula using mathjs parser
    */
-  validateFormula(formula: string): { valid: boolean; error?: string } {
+  validateFormula(formula: string): { valid: boolean; error?: string } {   
     try {
-      parse(formula); // throws if invalid
+      parse(formula.replaceAll(':', '_')); // throws if invalid
       return { valid: true };
     } catch (err: any) {
       return { valid: false, error: err.message };

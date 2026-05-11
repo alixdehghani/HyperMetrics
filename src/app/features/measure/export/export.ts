@@ -91,7 +91,7 @@ export class MeasureExport {
     private _getPropertiesBlobFile(): Blob {
 
         let propertiesContent = '';
-        this.measureObject.measureObjTypeList.forEach(measurObj => {
+        this.measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList).forEach(measurObj => {
             // Add measure type
             propertiesContent += `pm.measure.object.type.${this.measureObject.neTypeId}${measurObj.measureObjTypeId}=${measurObj.measureType}\n`;
 
@@ -101,7 +101,7 @@ export class MeasureExport {
             });
         });
 
-        this.measureObject.measureObjTypeList.forEach(measurObj => {
+        this.measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList).forEach(measurObj => {
             // Process counters
             measurObj.measureObjList.forEach(measureObj => {
                 measureObj.counterList.forEach(counter => {
@@ -110,7 +110,7 @@ export class MeasureExport {
                 });
             });
         });
-        this.measureObject.measureObjTypeList.forEach(measurObj => {
+        this.measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList).forEach(measurObj => {
             // Process KPIs
             measurObj.measureObjList.forEach(measureObj => {
                 measureObj.kpiList.forEach(kpi => {
@@ -128,23 +128,28 @@ export class MeasureExport {
             "neVersion": this.measureObject.neVersion,
             "neTypeId": this.measureObject.neTypeId,
             "neTypeName": this.measureObject.neTypeName,
-            "measureObjTypeList": this.measureObject.measureObjTypeList.map(mType => ({
-                "measureObjTypeId": `${this.measureObject.neTypeId}${mType.measureObjTypeId}`,
-                "name": mType.measureType,
-                "commAttributes": ["cellId"],
-                "commAttributeVals": ["U8"],
-                "measureObj": mType.measureObjList.map(mObj => ({
-                    "measureObjId": `${this.measureObject.neTypeId}${mType.measureObjTypeId}${mObj.measureObjId}`,
-                    "name": mObj.name.trim(),
-                    "dataUpPeriodMod": "0",
-                    "counterList": mObj.counterList.map(c => c.id),
-                    "kpiList": mObj.kpiList.map(k => ({
-                        "kpiId": parseInt(k.kpiId),
-                        "kpiCounterList": this.measureService.getKpiCounterList(k).join(','),
-                        "formula": this.measureService.convertFormula(k.formula)
+            "ratTypeList": this.measureObject.ratTypeList.map(rat => ({
+                "ratTypeId": rat.ratTypeId,
+                "ratTypeName": rat.ratTypeName,
+                "measureObjTypeList": this.measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList).map(mType => ({
+                    "measureObjTypeId": `${this.measureObject.neTypeId}${mType.measureObjTypeId}`,
+                    "name": mType.measureType,
+                    "commAttributes": ["cellId"],
+                    "commAttributeVals": ["U8"],
+                    "measureObj": mType.measureObjList.map(mObj => ({
+                        "measureObjId": `${this.measureObject.neTypeId}${mType.measureObjTypeId}${mObj.measureObjId}`,
+                        "name": mObj.name.trim(),
+                        "dataUpPeriodMod": "0",
+                        "counterList": mObj.counterList.map(c => c.id),
+                        "kpiList": mObj.kpiList.map(k => ({
+                            "kpiId": `K${k.kpiId.padStart(10, '0')}`,
+                            "kpiCounterList": this.measureService.getKpiCounterListNewFormat(k).join(','),
+                            "formula": this.measureService.convertFormulaNewFormat(k.formula)
+                        }))
                     }))
                 }))
             }))
+
         };
         return new Blob([JSON.stringify(eNodeBStructure, null, 2)], {
             type: 'application/json'
@@ -155,7 +160,7 @@ export class MeasureExport {
         const kpiSetting = {} as any;
 
         // Process each measureObj in the hyperCounterKpi
-        const measureObjList = this.measureObject.measureObjTypeList.flatMap(mType => mType.measureObjList);
+        const measureObjList = this.measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList).flatMap(mType => mType.measureObjList);
         measureObjList.forEach((measureObj: MeasureObj) => {
             const abbreviation = measureObj.abbreviation.replace('-', '');
             const targetKey = abbreviation.toLocaleLowerCase();
@@ -189,7 +194,7 @@ export class MeasureExport {
             return tokens.map(token => token.trim());
         }
 
-        const measureObjList = this.measureObject.measureObjTypeList.flatMap(mType => mType.measureObjList);
+        const measureObjList = this.measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList).flatMap(mType => mType.measureObjList);
         measureObjList.forEach((measureObj: MeasureObj) => {
             const abbreviation = measureObj.abbreviation;
             const subCategory = abbreviation.toUpperCase();
@@ -224,7 +229,7 @@ export class MeasureExport {
 
     private _getOssE2eTesingBlobFile(): Blob {
         const obj: any = {};
-        const measureObjList = this.measureObject.measureObjTypeList.flatMap(mType => mType.measureObjList);
+        const measureObjList = this.measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList).flatMap(mType => mType.measureObjList);
         measureObjList.forEach((measureObj: MeasureObj) => {
             obj[measureObj.name] = {
                 counters: measureObj.counterList.map(c => ({ name: c.name, isActive: false })),

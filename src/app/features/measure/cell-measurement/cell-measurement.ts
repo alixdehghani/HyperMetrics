@@ -49,6 +49,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   newFormula: string = '';
   isValid: boolean = true;
   readonly measureObjTypeId!: string;
+  readonly ratTypeId!: string;
   readonly units!: string[];
   showFullscreenFormulaEditor: boolean = false;
   showFullscreenTransferCounter: boolean = false;
@@ -80,6 +81,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   constructor(...args: unknown[]);
   constructor() {
     this.measureObjTypeId = this._route.snapshot.paramMap.get('typeId') || '';
+    this.ratTypeId = this._route.snapshot.paramMap.get('ratTypeId') || '';
     this.units = UNITS;
 
     this.form = this.fb.group({
@@ -509,9 +511,9 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
 
   private _initializeVariables(): void {
 
-    this.allCounters = this.measurService.getAllCounters();
-    this.allKpis = this.measurService.getAllKpis();
-    this.allMeasureObjs = this.measurService.getMeasureObject()?.measureObjTypeList.flatMap(m => m.measureObjList)!
+    this.allCounters = this.measurService.getAllCounters() || [];
+    this.allKpis = this.measurService.getAllKpis() || [];
+    this.allMeasureObjs = this.measurService.getMeasureObject()?.ratTypeList.flatMap(rat => rat.measureObjTypeList).flatMap(m => m.measureObjList)!
     this.allCounters.forEach(c => {
       this.getKpisUsingCounterObject[c.id] = this.measurService.getKpisUsingCounter(c);
     });
@@ -1088,7 +1090,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
 
 
   clearLocalStorage(): void {
-    this.measurService.removeTypeObjFromStorageById(this.measureObjTypeId);
+    this.measurService.removeTypeObjFromStorageById(this.ratTypeId ,this.measureObjTypeId);
     // this.measurementData = null;
     // this.showRestoreBanner = false;
   }
@@ -1096,7 +1098,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
   saveToLocalStorage(): void {
     this.routeService.isLoadingRoute.set(true);
     requestIdleCallback(() => {
-      this.measurService.addTypeObjIntoLocalStorageById(this.measureObjTypeId, this.form.getRawValue());
+      this.measurService.addTypeObjIntoLocalStorageById(this.ratTypeId, this.measureObjTypeId, this.form.getRawValue());
       this._initializeVariables();
       this.routeService.isLoadingRoute.set(false);
     });
@@ -1149,9 +1151,9 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
         _show: true,
       };
       targetMeasurObj.counterList.push(newCounter);
-      const index1 = measureObject.measureObjTypeList.findIndex(item => item.measureObjList.some(mo => mo.measureObjId === targetMeasurObj.measureObjId));
-      const index2 = measureObject.measureObjTypeList[index1].measureObjList.findIndex(item => item.measureObjId === targetMeasurObj.measureObjId);
-      measureObject.measureObjTypeList[index1].measureObjList[index2] = targetMeasurObj;
+      const index1 = measureObject.ratTypeList.find(rat => rat.ratTypeId === this.ratTypeId)!.measureObjTypeList.findIndex(item => item.measureObjList.some(mo => mo.measureObjId === targetMeasurObj.measureObjId));
+      const index2 = measureObject.ratTypeList.find(rat => rat.ratTypeId === this.ratTypeId)!.measureObjTypeList[index1].measureObjList.findIndex(item => item.measureObjId === targetMeasurObj.measureObjId);
+      measureObject.ratTypeList.find(rat => rat.ratTypeId === this.ratTypeId)!.measureObjTypeList[index1].measureObjList[index2] = targetMeasurObj;
       this._normalizeCountersAndKpis(this.measurementData);
       this.$destroy.next(null); // stop any ongoing subscriptions
       this.$destroy.complete();
@@ -1162,7 +1164,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       this._updateMeasurementObject();
       this.closeFormulaFullscreenTransferCounter();
       this.showSuccessMessage = true;
-      this.measurService.addTypeObjIntoLocalStorageById(measureObject.measureObjTypeList[index1].measureObjTypeId, measureObject.measureObjTypeList[index1]);
+      this.measurService.addTypeObjIntoLocalStorageById(this.ratTypeId, measureObject.ratTypeList.find(rat => rat.ratTypeId === this.ratTypeId)!.measureObjTypeList[index1].measureObjTypeId, measureObject.ratTypeList.find(rat => rat.ratTypeId === this.ratTypeId)!.measureObjTypeList[index1]);
     }
   }
 
@@ -1213,9 +1215,9 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
         _show: true,
       };
       targetMeasurObj.kpiList.push(newKpi);
-      const index1 = measureObject.measureObjTypeList.findIndex(item => item.measureObjList.some(mo => mo.measureObjId === targetMeasurObj.measureObjId));
-      const index2 = measureObject.measureObjTypeList[index1].measureObjList.findIndex(item => item.measureObjId === targetMeasurObj.measureObjId);
-      measureObject.measureObjTypeList[index1].measureObjList[index2] = targetMeasurObj;
+      const index1 = measureObject.ratTypeList.find(rat => rat.ratTypeId === this.ratTypeId)!.measureObjTypeList.findIndex(item => item.measureObjList.some(mo => mo.measureObjId === targetMeasurObj.measureObjId));
+      const index2 = measureObject.ratTypeList.find(rat => rat.ratTypeId === this.ratTypeId)!.measureObjTypeList[index1].measureObjList.findIndex(item => item.measureObjId === targetMeasurObj.measureObjId);
+      measureObject.ratTypeList.find(rat => rat.ratTypeId === this.ratTypeId)!.measureObjTypeList[index1].measureObjList[index2] = targetMeasurObj;
       this._normalizeCountersAndKpis(this.measurementData);
       this.$destroy.next(null); // stop any ongoing subscriptions
       this.$destroy.complete();
@@ -1224,7 +1226,7 @@ export class CellMeasurementComponent implements OnInit, OnDestroy {
       this._updateMeasurementObject();
       this.closeFormulaFullscreenTransferKpi();
       this.showSuccessMessage = true;
-      this.measurService.addTypeObjIntoLocalStorageById(measureObject.measureObjTypeList[index1].measureObjTypeId, measureObject.measureObjTypeList[index1]);
+      this.measurService.addTypeObjIntoLocalStorageById(this.ratTypeId, measureObject.ratTypeList.find(rat => rat.ratTypeId === this.ratTypeId)!.measureObjTypeList[index1].measureObjTypeId, measureObject.ratTypeList.find(rat => rat.ratTypeId === this.ratTypeId)!.measureObjTypeList[index1]);
     }
   }
 

@@ -12,7 +12,7 @@ export const measureRoutes = [
                 component: Measure
             },
             {
-                path: ':typeId/measurement-object-config',
+                path: ':ratTypeId/:typeId/measurement-object-config',
                 component: CellMeasurementComponent,
             },
             // {

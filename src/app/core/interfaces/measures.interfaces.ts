@@ -2,6 +2,12 @@ export interface MeasureType {
   neVersion: string;
   neTypeId: string;
   neTypeName: string;
+  ratTypeList: RatType[];
+}
+
+export interface RatType {
+  ratTypeId: string;
+  ratTypeName: string;
   measureObjTypeList: MeasureObjType[];
 }
 export interface MeasureObjType {

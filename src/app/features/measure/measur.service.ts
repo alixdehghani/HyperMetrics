@@ -1,6 +1,6 @@
 import { inject, Injectable } from "@angular/core";
 import { FormulaParserService } from "../../core/helper/formula-helper";
-import { Counter, KPI, MeasureObj, MeasureObjType, MeasureType } from "../../core/interfaces/measures.interfaces";
+import { Counter, KPI, MeasureObj, MeasureObjType, MeasureType, RatType } from "../../core/interfaces/measures.interfaces";
 
 @Injectable({ providedIn: 'root' })
 
@@ -51,43 +51,53 @@ export class MeasurService {
     }
 
     getNewMeasureObjId(): string | null {
-        const source = this.getMeasureObject()?.measureObjTypeList!
+        const source = this.getMeasureObject()?.ratTypeList.flatMap(rat => rat.measureObjTypeList)!
         return this.generateMeasureObjId(source);
     }
 
     getNewCounterId(): string | null {
-        const source = this.getMeasureObject()?.measureObjTypeList!
+        const source = this.getMeasureObject()?.ratTypeList.flatMap(rat => rat.measureObjTypeList)!
         return this.generateCounterId(source);
     }
 
     getNewKpiId(): string | null {
-        const source = this.getMeasureObject()?.measureObjTypeList!
+        const source = this.getMeasureObject()?.ratTypeList.flatMap(rat => rat.measureObjTypeList)!
         return this.generateKpiId(source);
     }
 
-    validateNewMeasureObjTypeName(measure: MeasureObjType): string[] {
+    validateNewMeasureObjTypeName(ratId: string, measure: MeasureObjType): string[] {
         const measureObject = this.getMeasureObject()!;
         const errors: string[] = [];
         if (!measure.measureType || measure.measureType.trim() === '') {
             errors.push("measure type is required.");
         }
-        const existingNames = measureObject.measureObjTypeList.map(m => m.measureType);
-        if (existingNames.some(existingName => existingName === measure.measureType)) {
-            errors.push(`${measure.measureType} is already used by another measure objects. measure objects names must be unique.`);
+        const ratType = measureObject?.ratTypeList.find(rat => rat.ratTypeId === ratId);
+        if (!ratType) {
+            errors.push(`${ratId} Not Found in rat list id.`);
+        } else {
+            const existingNames = ratType.measureObjTypeList.map(m => m.measureType);
+            if (existingNames.some(existingName => existingName === measure.measureType)) {
+                errors.push(`${measure.measureType} is already used by another measure objects. measure objects names must be unique.`);
+            }
         }
         return errors;
     }
 
-    validateNewMeasureObjTypeId(measure: MeasureObjType): string[] {
+    validateNewMeasureObjTypeId(ratId: string, measure: MeasureObjType): string[] {
         const measureObject = this.getMeasureObject()!;
         const errors: string[] = [];
         if (!measure.measureObjTypeId || measure.measureObjTypeId.trim() === '') {
             errors.push("measureObjType ID is required.");
         }
-        const existingIds = measureObject.measureObjTypeList.map(m => m.measureObjTypeId);
+        const ratType = measureObject?.ratTypeList.find(rat => rat.ratTypeId === ratId);
+        if (!ratType) {
+            errors.push(`${ratId} Not Found in rat list id.`);
+        } else {
+        const existingIds = ratType.measureObjTypeList.map(m => m.measureObjTypeId);
         if (existingIds.some(existingId => existingId === measure.measureObjTypeId)) {
             errors.push(`${measure.measureObjTypeId} is already used by another measure objects. measure objects IDs must be unique.`);
         }
+    }
         return errors;
     }
 
@@ -132,12 +142,12 @@ export class MeasurService {
     getAllErrors(): string[] {
         const errors: string[] = [];
         const measureObject = this.getMeasureObject();
-        const measureObjs = measureObject?.measureObjTypeList.flatMap(m => m.measureObjList) || [];
+        const measureObjs = measureObject?.ratTypeList.flatMap(rat => rat.measureObjTypeList).flatMap(m => m.measureObjList) || [];
         if (!measureObject) {
             errors.push("No measure object found.");
             return errors;
         }
-        errors.push(...this.getAllMeasureTypeErrors(measureObject.measureObjTypeList));
+        errors.push(...this.getAllMeasureTypeErrors(measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList)));
         errors.push(...this.getAllMeasureObjecErrors(measureObjs));
         errors.push(...this.getAllCounterErrors(measureObjs));
         errors.push(...this.getAllKpiErrors(measureObjs));
@@ -149,6 +159,9 @@ export class MeasurService {
         if (formula) {
             const nameToNumericId: Record<string, string> = {};
             const allCounters = this.getAllCounters();
+            if (!allCounters) {
+                return undefined;
+            }
             allCounters.forEach(c => {
                 if (c._numericId) {
                     nameToNumericId[c.name] = c._numericId!;
@@ -166,12 +179,36 @@ export class MeasurService {
         return undefined;
     }
 
+    convertFormulaNewFormat(formula: string) {
+        if (formula) {
+            const nameToNumericId: Record<string, string> = {};
+            const allCounters = this.getAllCounters();
+            if (!allCounters) {
+                return undefined;
+            }
+            allCounters.forEach(c => {
+                if (c._numericId) {
+                    nameToNumericId[c.name] = c._numericId!;
+                } else {
+                    nameToNumericId[c.name] = c.id
+                }
+            });
+            let normalized = formula.replace(/\s+/g, ''); // remove all whitespace (spaces, tabs, newlines)
+            Object.entries(nameToNumericId).forEach(([name, numId]) => {
+                const regex = new RegExp(`\\b${name}\\b`, "g");
+                normalized = normalized.replace(regex, `${numId}`);
+            });
+            return normalized;
+        }
+        return undefined;
+    }
+
     getKpiCounterList(kpi: KPI): string[] {
         const measurObj = this.getMeasureObject();
         if (!measurObj) {
             return []
         }
-        const counters = measurObj.measureObjTypeList.flatMap(mType => mType.measureObjList.flatMap(mObj => mObj.counterList));
+        const counters = measurObj?.ratTypeList.flatMap(rat => rat.measureObjTypeList).flatMap(mType => mType.measureObjList.flatMap(mObj => mObj.counterList));
         const usedCounters = this.extractCounterNamesFromFormula(kpi.formula, counters);
         if (!usedCounters) {
             return [];
@@ -179,13 +216,26 @@ export class MeasurService {
         return usedCounters.map(counter => `${parseInt(counter.id.slice(1), 10)}` || '') || []
     }
 
+    getKpiCounterListNewFormat(kpi: KPI): string[] {
+        const measurObj = this.getMeasureObject();
+        if (!measurObj) {
+            return []
+        }
+        const counters = measurObj?.ratTypeList.flatMap(rat => rat.measureObjTypeList).flatMap(mType => mType.measureObjList.flatMap(mObj => mObj.counterList));
+        const usedCounters = this.extractCounterNamesFromFormula(kpi.formula, counters);
+        if (!usedCounters) {
+            return [];
+        }
+        return usedCounters.map(counter => counter.id || '') || []
+    }
+
     getKpisUsingCounter(counter: Counter): KPI[] {
         const measureObj = this.getMeasureObject();
         if (!measureObj) {
             return []
         }
-        const allKpis = measureObj?.measureObjTypeList.flatMap(mType => mType.measureObjList.flatMap(mObj => mObj.kpiList));
-        const allCounters = measureObj?.measureObjTypeList.flatMap(mType => mType.measureObjList.flatMap(mObj => mObj.counterList));
+        const allKpis = measureObj?.ratTypeList.flatMap(rat => rat.measureObjTypeList).flatMap(mType => mType.measureObjList.flatMap(mObj => mObj.kpiList));
+        const allCounters = measureObj?.ratTypeList.flatMap(rat => rat.measureObjTypeList).flatMap(mType => mType.measureObjList.flatMap(mObj => mObj.counterList));
         const usedKpis = allKpis.filter(k => this.extractCounterNamesFromFormula(k.formula, allCounters).some(c => c.id === counter.id))
         return usedKpis;
     }
@@ -195,7 +245,7 @@ export class MeasurService {
         if (!measureObj) {
             return []
         }
-        const allCounters = measureObj?.measureObjTypeList.flatMap(mType => mType.measureObjList.flatMap(mObj => mObj.counterList));
+        const allCounters = measureObj?.ratTypeList.flatMap(rat => rat.measureObjTypeList).flatMap(mType => mType.measureObjList.flatMap(mObj => mObj.counterList));
         const usedCounters = this.extractCounterNamesFromFormula(kpi.formula, allCounters).map(c => `${parseInt(c.id.slice(1), 10)}` || '');
 
         return allCounters.filter(counter =>
@@ -212,35 +262,74 @@ export class MeasurService {
         localStorage.setItem(this.measureObjectKey, data);
     }
 
-    addTypeObjIntoLocalStorageById(measureObjTypeId: string, measureObjData: MeasureObjType): void {
+    addTypeObjIntoLocalStorageById(ratTypeId: string, measureObjTypeId: string, measureObjData: MeasureObjType): void {
         // const data = JSON.stringify(measureObjData);
         // localStorage.setItem(`${this.measureObjPrefix}${measureObjTypeId}`, data);
         const measureObj = this.getMeasureObject();
         if (!measureObj) {
             return
         }
-        const index = measureObj.measureObjTypeList.findIndex(m => m.measureObjTypeId === measureObjData.measureObjTypeId);
+        const index = measureObj.ratTypeList.find(rat => rat.ratTypeId === ratTypeId)?.measureObjTypeList.findIndex(m => m.measureObjTypeId === measureObjData.measureObjTypeId) || 0;
         if (index >= 0) {
-            measureObj.measureObjTypeList[index] = measureObjData;
+            measureObj.ratTypeList.find(rat => rat.ratTypeId === ratTypeId)!.measureObjTypeList[index] = measureObjData;
         } else {
-            measureObj.measureObjTypeList.push(measureObjData);
+            measureObj.ratTypeList.find(rat => rat.ratTypeId === ratTypeId)!.measureObjTypeList.push(measureObjData);
         }
         this.saveMainObjectIntoLocalStorage(measureObj);
 
     }
 
-    removeTypeObjFromStorageById(measureObjTypeId: string): void {
+    addRatTypeIntoLocalStorageById(ratType: RatType): void {
+        // const data = JSON.stringify(measureObjData);
+        // localStorage.setItem(`${this.measureObjPrefix}${measureObjTypeId}`, data);
+        const measureObj = this.getMeasureObject();
+        if (!measureObj) {
+            return
+        }
+        const index = measureObj.ratTypeList.findIndex(rat => rat.ratTypeId === ratType.ratTypeId);
+        if (index >= 0) {
+            measureObj.ratTypeList[index] = ratType;
+        } else {
+            measureObj.ratTypeList.push(ratType);
+        }
+        this.saveMainObjectIntoLocalStorage(measureObj);
+
+    }
+
+    removeTypeObjFromStorageById(ratTypeId: string, measureObjTypeId: string): void {
         // localStorage.removeItem(`${this.measureObjPrefix}${measureObjTypeId}`);
         const measureObj = this.getMeasureObject();
         if (!measureObj) {
             return
         }
-        const index = measureObj.measureObjTypeList.findIndex(m => m.measureObjTypeId === measureObjTypeId);
+        const index = measureObj.ratTypeList.find(rat => rat.ratTypeId === ratTypeId)!.measureObjTypeList.findIndex(m => m.measureObjTypeId === measureObjTypeId);
         if (index >= 0) {
-            measureObj.measureObjTypeList = measureObj.measureObjTypeList.filter(m => m.measureObjTypeId != measureObjTypeId);
+            measureObj.ratTypeList.find(rat => rat.ratTypeId === ratTypeId)!.measureObjTypeList = measureObj.ratTypeList.find(rat => rat.ratTypeId === ratTypeId)!.measureObjTypeList.filter(m => m.measureObjTypeId != measureObjTypeId);
         }
 
         this.saveMainObjectIntoLocalStorage(measureObj);
+    }
+
+    removeRatTypeFromStorageById(ratTypeId: string): void {
+        // localStorage.removeItem(`${this.measureObjPrefix}${measureObjTypeId}`);
+        const measureObj = this.getMeasureObject();
+        if (!measureObj) {
+            return
+        }
+        const index = measureObj.ratTypeList.findIndex(rat => rat.ratTypeId === ratTypeId);
+        if (index >= 0) {
+            measureObj.ratTypeList = measureObj.ratTypeList.filter(m => m.ratTypeId != ratTypeId);
+        }
+
+        this.saveMainObjectIntoLocalStorage(measureObj);
+    }
+
+    getRatTypeById(ratTypeId: string): RatType | undefined {
+        const measureObj = this.getMeasureObject();
+        if (!measureObj) {
+            return undefined;
+        }
+        return measureObj.ratTypeList.find(m => m.ratTypeId === ratTypeId);
     }
 
     getMeasureTypeById(measureObjTypeId: string): MeasureObjType | undefined {
@@ -248,23 +337,23 @@ export class MeasurService {
         if (!measureObj) {
             return undefined;
         }
-        return measureObj.measureObjTypeList.find(m => m.measureObjTypeId === measureObjTypeId);
+        return measureObj?.ratTypeList.flatMap(rat => rat.measureObjTypeList).find(m => m.measureObjTypeId === measureObjTypeId);
     }
 
-    getAllCounters(): Counter[] {
+    getAllCounters(): Counter[] | undefined {
         const measureObj = this.getMeasureObject();
         if (!measureObj) {
             return []
         }
-        return measureObj?.measureObjTypeList.flatMap(mType => mType.measureObjList.flatMap(mObj => mObj.counterList));
+        return measureObj?.ratTypeList.flatMap(rat => rat.measureObjTypeList).flatMap(mType => mType.measureObjList.flatMap(mObj => mObj.counterList));
     }
 
-    getAllKpis(): KPI[] {
+    getAllKpis(): KPI[] | undefined {
         const measureObj = this.getMeasureObject();
         if (!measureObj) {
             return []
         }
-        return measureObj?.measureObjTypeList.flatMap(mType => mType.measureObjList.flatMap(mObj => mObj.kpiList));
+        return measureObj?.ratTypeList.flatMap(rat => rat.measureObjTypeList).flatMap(mType => mType.measureObjList.flatMap(mObj => mObj.kpiList));
     }
 
     validateFormula(formula: string, availableCounters: Counter[]): string[] {
@@ -305,6 +394,19 @@ export class MeasurService {
             return `${id}`
         } else {
             return `101`;
+        }
+    }
+
+    private generateRatTypeId(source: RatType[]): string | null {
+        const existingIds = source.map(m => parseInt(m.ratTypeId)).filter(id => !isNaN(id));
+        if (existingIds.length > 0) {
+            let id = Math.max(...existingIds) + 1;
+            while (!this.isRatTypeIdUniq(`${id}`, source)) {
+                id++;
+            }
+            return `${id}`
+        } else {
+            return `1`;
         }
     }
 
@@ -352,6 +454,10 @@ export class MeasurService {
 
     private isMeasureObjTypeIdUniq(id: string, source: MeasureObjType[]): boolean {
         return !source.some(s => s.measureObjTypeId == id)
+    }
+
+    private isRatTypeIdUniq(id: string, source: RatType[]): boolean {
+        return !source.some(s => s.ratTypeId == id)
     }
 
     private isMeasureObjIdUniq(id: string, source: MeasureObj[]): boolean {
