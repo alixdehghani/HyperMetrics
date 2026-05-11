@@ -13,7 +13,28 @@ export const filenames = {
     RR: 'rr_setting.json',
     DRB: 'drb_setting.json',
     ConfMap: 'Hytera-Faraabeen-conf-map.json',
-    Commands: 'commands.json'
+    Commands: 'commands.json',
+    Documentation: 'enodeb-documentation.pdf'
+}
+
+interface DocParam {
+    nodePath: string;
+    nodeTitle: string;
+    dataName: string;
+    parameterName: string;
+    type: string;
+    defaultValue: string;
+    validation: string;
+    isEditable: boolean;
+    filterOptions: string;
+}
+
+interface DocSection {
+    configType: string;
+    nodePath: string;
+    nodeTitle: string;
+    depth: number;
+    params: DocParam[];
 }
 
 @Component({
@@ -26,6 +47,7 @@ export class ExportConfig {
     private eNodeBTreeService = inject(ENodeBTreeService);
     showFullscreen = false;
     allErrors: string[] = [];
+
     close() {
         this.showFullscreen = false;
     }
@@ -58,21 +80,25 @@ export class ExportConfig {
         const hyperBlob = this._getHyperConfigBlobFile(data!);
         saveAs(hyperBlob, filenames['HyperConfig']);
     }
+
     async downloadENBSettingFiles() {
         const data = await firstValueFrom(this.eNodeBTreeService.config$);
         const blob = this._getEnbSettingBlobFile(data!);
         saveAs(blob, filenames['ENB']);
     }
+
     async downloadSIBSettingFiles() {
         const data = await firstValueFrom(this.eNodeBTreeService.config$);
         const blob = this._getSIBSettingBlobFile(data!);
         saveAs(blob, filenames['SIB']);
     }
+
     async downloadRRSettingFiles() {
         const data = await firstValueFrom(this.eNodeBTreeService.config$);
         const blob = this._getRRSettingBlobFile(data!);
         saveAs(blob, filenames['RR']);
     }
+
     async downloadDRBSettingFiles() {
         const data = await firstValueFrom(this.eNodeBTreeService.config$);
         const blob = this._getDRBSettingBlobFile(data!);
@@ -83,16 +109,378 @@ export class ExportConfig {
         const data = await firstValueFrom(this.eNodeBTreeService.config$);
         const blob = this._getHyteraFaraabenBlobFile(data!);
         saveAs(blob, filenames['ConfMap']);
-
     }
+
     async downloadCommandsFile() {
         const data = await firstValueFrom(this.eNodeBTreeService.config$);
         const blob = this._getCommandsBlobFile(data!);
         saveAs(blob, filenames['Commands']);
     }
 
+    async downloadDocumentationPDF() {
+
+        try {
+
+            const data = await firstValueFrom(this.eNodeBTreeService.config$);
+
+            if (!data) {
+                alert('No configuration data found.');
+                return;
+            }
+
+            const sections = this._buildDocSections(data);
+
+            if (sections.length === 0) {
+                alert('No sections found in configuration tree.');
+                return;
+            }
+
+            const byType = new Map<string, DocSection[]>();
+
+            sections.forEach(s => {
+
+                if (!byType.has(s.configType)) {
+                    byType.set(s.configType, []);
+                }
+
+                byType.get(s.configType)!.push(s);
+            });
+
+            const html = this._buildDocumentationHTML(
+                sections,
+                byType
+            );
+
+            const newTab = window.open('', '_blank');
+
+            if (!newTab) {
+                alert('Popup blocked! Please allow popups for this site.');
+                return;
+            }
+
+            newTab.document.open();
+
+            newTab.document.write(html);
+
+            newTab.document.close();
+
+        } catch (err) {
+
+            console.error('Documentation generation failed:', err);
+
+            alert(
+                `Error: ${(err as Error)?.message || err}`
+            );
+        }
+    }
+
+    private _loadScript(src: string, globalKey: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            if ((window as any)[globalKey]) { resolve(); return; }
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Failed to load: ' + src));
+            document.head.appendChild(script);
+        });
+    }
+
+   
+    private _buildDocSections(config: ENodeBConfig): DocSection[] {
+        const sections: DocSection[] = [];
+        config.configObjTypeList.forEach(typeItem => {
+            typeItem.configObjList.forEach(rootObj => {
+                this._traverseForDoc(rootObj, typeItem.configType, [], sections, 0);
+            });
+        });
+        return sections;
+    }
+
+    
+    private _traverseForDoc(
+        obj: ConfigObj,
+        configType: string,
+        pathStack: string[],
+        sections: DocSection[],
+        depth: number
+    ): void {
+        const currentPath = [...pathStack, obj.dataName];
+        const nodePath = '/' + currentPath.join('/');
+        const nodeTitle = obj.title || obj.parameterName || obj.dataName;
+
+        const params: DocParam[] = (obj.params || []).map(p => ({
+            nodePath,
+            nodeTitle,
+            dataName: p.dataName,
+            parameterName: p.parameterName || p.title || p.name || p.dataName,
+            type: p.type || '—',
+            defaultValue: p.defaultValue != null ? String(p.defaultValue) : '—',
+            validation: p.validation || p.uiValidation || '—',
+            isEditable: !!p.isEditable,
+            filterOptions: p.filter && p.filter.length > 0
+                ? p.filter.map((f: any) => f.label || f.name || f.value || String(f)).join(', ')
+                : '—'
+        }));
+
+        // Only add section if it has params or children (skip empty leaf-less nodes)
+        if (params.length > 0 || (obj.configObjList && obj.configObjList.length > 0)) {
+            sections.push({ configType, nodePath, nodeTitle, depth, params });
+        }
+
+        if (obj.configObjList && obj.configObjList.length > 0) {
+            obj.configObjList.forEach(child => {
+                this._traverseForDoc(child, configType, currentPath, sections, depth + 1);
+            });
+        }
+    }
+
+   
+    private _esc(str: string): string {
+        if (!str || str === '—') return str || '—';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    private _buildDocumentationHTML(sections: DocSection[], byType: Map<string, DocSection[]>): string {
+
+        const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        const totalParams = sections.reduce((acc, s) => acc + s.params.length, 0);
+        const totalNodes = sections.filter(s => s.params.length > 0).length;
+        const moduleNames = Array.from(byType.keys()).map(k => k.toUpperCase()).join(' · ');
+
+        const chapterColors: Record<string, string> = {
+            enb: '#1e3a8a',
+            sib: '#065f46',
+            rr: '#581c87',
+            drb: '#7c2d12'
+        };
+
+        const chapterAccents: Record<string, string> = {
+            enb: '#3b82f6',
+            sib: '#10b981',
+            rr: '#a855f7',
+            drb: '#f97316'
+        };
+
+        const chaptersHTML = Array.from(byType.entries()).map(([type, typeSections], ci) => {
+
+            const bgColor = chapterColors[type] || '#1e3a5f';
+            const accent = chapterAccents[type] || '#60a5fa';
+            const chapterParams = typeSections.reduce((a, s) => a + s.params.length, 0);
+
+            const sectionsHTML = typeSections.map(section => {
+
+                if (section.params.length === 0) return '';
+
+                const depth = section.depth;
+                const hue = depth === 0 ? bgColor : depth === 1 ? '#2d394b' : '#475569';
+                const indent = depth * 16;
+
+                const rowsHTML = section.params.map((p, i) => {
+
+                    const bg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
+
+                    const editIcon = p.isEditable ? '✓' : '✗';
+
+                    const filterVal =
+                        p.filterOptions === '—' || p.filterOptions === '&mdash;'
+                            ? ''
+                            : this._esc(p.filterOptions);
+
+                    return `
+    <tr style="background:${bg}">
+        <td>${this._esc(p.dataName)}</td>
+        <td>${this._esc(p.parameterName)}</td>
+        <td><span class="type">${this._esc(p.type)}</span></td>
+        <td>${this._esc(p.defaultValue)}</td>
+        <td>${this._esc(p.validation)}</td>
+        <td style="text-align:center;">
+            <span class="badge ${p.isEditable ? 'yes' : 'no'}">
+                ${editIcon} ${p.isEditable ? 'Yes' : 'No'}
+            </span>
+        </td>
+        <td>${filterVal || '—'}</td>
+    </tr>`;
+                }).join('');
+
+                return `
+    <div class="section" style="margin-left:${indent}px;">
+
+        <div class="section-header" style="background:${hue}">
+            <span style="opacity:0.6;font-size:8pt">${this._esc(section.nodePath)}</span>
+            <span style="font-weight:700">${this._esc(section.nodeTitle)}</span>
+            <span style="float:right;opacity:0.8;font-size:8pt">${section.params.length} params</span>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:14%">Data Name</th>
+                    <th style="width:18%">Parameter</th>
+                    <th style="width:10%">Type</th>
+                    <th style="width:12%">Default</th>
+                    <th style="width:16%">Validation</th>
+                    <th style="width:10%">Editable</th>
+                    <th style="width:20%">Filter Options</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                ${rowsHTML}
+            </tbody>
+        </table>
+
+    </div>`;
+            }).join('');
+
+            return `
+    <section style="page-break-before:${ci > 0 ? 'always' : 'auto'}">
+
+        <div style="background:linear-gradient(135deg,${bgColor},${bgColor}dd);
+            border-left:5px solid ${accent};
+            color:white;padding:18px;margin-bottom:20px;border-radius:8px;">
+
+            <div style="font-size:22px;font-weight:800">
+                ${type.toUpperCase()}
+            </div>
+
+            <div style="opacity:0.7;font-size:12px">
+                ${chapterParams} parameters
+            </div>
+
+        </div>
+
+        ${sectionsHTML}
+
+    </section>`;
+        }).join('');
+
+        return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="utf-8"/>
+
+    <style>
+
+
+    * { box-sizing: border-box; }
+
+    body {
+        font-family: Inter, Arial;
+        margin: 0;
+        background: #f1f5f9;
+        color: #0f172a;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    td, th {
+        border: 1px solid #e2e8f0;
+        padding: 6px;
+        font-size: 9pt;
+
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        vertical-align: top;
+    }
+
+    td {
+        max-width: 0;  
+    }
+
+    /* header repeat fix */
+    thead {
+        display: table-header-group;
+    }
+
+    /* row safe */
+    tr {
+        break-inside: avoid;
+    }
+
+    /* badges */
+    .badge {
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 8pt;
+        display: inline-block;
+    }
+
+    .yes { background:#dcfce7; color:#16a34a; }
+    .no { background:#fee2e2; color:#dc2626; }
+
+    .type {
+        background:#ede9fe;
+        color:#6d28d9;
+        padding:2px 6px;
+        border-radius:4px;
+        font-family: monospace;
+    }
+
+    /* section */
+    .section {
+        margin-bottom: 18px;
+        break-inside: avoid;
+    }
+
+    .section-header {
+        padding: 10px;
+        color: white;
+        font-weight: 700;
+    }
+
+    @media print {
+        body { background: white; }
+        section { page-break-before: always; }
+    }
+
+    </style>
+
+    </head>
+
+    <body>
+
+    <div style="padding:30px">
+
+    <h2>ENodeB Documentation</h2>
+    <p>${date}</p>
+
+    
+    ${chaptersHTML}
+
+    </div>
+<button
+    class="no-print"
+    onclick="window.print()"
+    style="
+        position:fixed;
+        bottom:20px;
+        right:20px;
+        z-index:9999;
+        background:#2563eb;
+        color:white;
+        border:none;
+        padding:12px 22px;
+        border-radius:8px;
+        font-size:14px;
+        font-weight:700;
+        cursor:pointer;
+        box-shadow:0 4px 12px rgba(0,0,0,.2);
+    "
+>
+    Save as PDF
+</button>
+    </body>
+    </html>`;
+    }
+
     private _getHyperConfigBlobFile(config: ENodeBConfig): Blob {
-        return new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' })
+        return new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
     }
 
     private _getEnbSettingBlobFile(data: ENodeBConfig): Blob {
@@ -125,50 +513,32 @@ export class ExportConfig {
         return new Blob([JSON.stringify(commands, null, 2)], { type: 'application/json' });
     }
 
+
     private flattenENodeBConfig(configType: ConfigObjType): SettingItem[] {
         const flatList: SettingItem[] = [];
-
-        // Iterate over the top-level config object types
-        // config.configObjTypeList.forEach(typeItem => {
-        // Iterate over the root config objects in each type
         configType.configObjList.forEach(rootObj => {
             this.processConfigObj(rootObj, [], [], flatList);
-            // });
         });
-
         return flatList;
     }
-    private processConfigObj(
-        obj: ConfigObj,
-        parentAbs: string[],
-        parentData: string[],
-        result: SettingItem[]
-    ): void {
 
-        // 1. Convert the current ConfigObj (Container)
+    private processConfigObj(obj: ConfigObj, parentAbs: string[], parentData: string[], result: SettingItem[]): void {
         const currentAbs = [...parentAbs];
         const currentData = [...parentData];
-
         const configItem: SettingItem = {
             dataName: obj.dataName,
-            show: obj.showInUI, // Assumed mapping
-            parameterName: obj.parameterName || obj.title, // Fallback to title if paramName empty
+            show: obj.showInUI,
+            parameterName: obj.parameterName || obj.title,
             abbreviation: obj.abbreviation,
             parentAbbreviationNames: [...parentAbs],
             parentDataNames: [...parentData],
-            isEditable: false, // Containers usually not editable directly
+            isEditable: false,
             hasParam: false,
             showInNavMenue: obj.showInNavMenue
         };
-        if (obj.dataName !== '0') {
-            result.push(configItem);
-        }
-
-        // Update parents for children (current obj becomes a parent)
+        if (obj.dataName !== '0') result.push(configItem);
         currentAbs.push(obj.abbreviation || '0');
         currentData.push(obj.dataName);
-
-        // 2. Process Parameters (Leafs of this node)
         if (obj.params && obj.params.length > 0) {
             obj.params.forEach(param => {
                 const paramItem: SettingItem = {
@@ -187,70 +557,38 @@ export class ExportConfig {
                 result.push(paramItem);
             });
         }
-
-        // 3. Recursively process child ConfigObjects
         if (obj.configObjList && obj.configObjList.length > 0) {
             obj.configObjList.forEach(childObj => {
                 this.processConfigObj(childObj, currentAbs, currentData, result);
             });
         }
     }
-    private determineInputType(param: Parameter): 'select' | 'number' | 'text' | 'boolean' {
-        if (param.filter && param.filter.length > 0) {
-            return 'select';
-        }
 
+    private determineInputType(param: Parameter): 'select' | 'number' | 'text' | 'boolean' {
+        if (param.filter && param.filter.length > 0) return 'select';
         switch (param.type) {
             case 'Integer':
-            case 'Float':
-                return 'number';
-            // Add logic for Boolean if your system has a specific type for it
-            default:
-                return 'text';
+            case 'Float': return 'number';
+            default: return 'text';
         }
     }
 
-    /**
-     * Helper to extract metadata (options for selects, min/max for numbers)
-     */
     private generateMetaData(param: Parameter): any {
-        // Case 1: Select/Dropdown (Filter Options)
         if (param.filter && param.filter.length > 0) {
-            // Assuming FilterOption has value/label structure. 
-            // If FilterOption is just a string or different, adjust map below.
-            return param.filter.map((f: any) => ({
-                value: f.value || f, // handle if f is object or primitive
-                label: f.label || f.name || f
-            }));
+            return param.filter.map((f: any) => ({ value: f.value || f, label: f.label || f.name || f }));
         }
-
-        // Case 2: Number Range (Validation String Parsing)
         if (param.type === 'Integer' || param.type === 'Float') {
-            // Logic depends on your validation string format. 
-            // Example implementation for a string like "range(-70, -22)" or "-70..-22"
-            if (param.validation) {
-                // Simple mock regex for "min..max" or similar
-                // You should replace this with your actual validation parser
-                return this.parseRange(param.validation);
-            }
+            if (param.validation) return this.parseRange(param.validation);
             return null;
         }
-
         return null;
     }
 
     private parseRange(validationStr: string): { min: number, max: number } | null {
-        // Example placeholder parser
-        // Adjust regex to match your actual data, e.g., "range(-70, -22)"
         try {
-            // This is a dummy implementation. 
-            // If string is "-70..-22"
             const parts = validationStr.match(/(-?\d+)/g);
             if (parts && parts.length >= 2) {
-                return {
-                    min: parseFloat(parts[0]),
-                    max: parseFloat(parts[1])
-                };
+                return { min: parseFloat(parts[0]), max: parseFloat(parts[1]) };
             }
         } catch (e) {
             console.warn('Failed to parse validation string', validationStr);
@@ -260,82 +598,40 @@ export class ExportConfig {
 
     public generateFlatFile(config: ENodeBConfig): ConfMapConfig {
         const result: ConfMapConfig = {};
-
-        // Iterate over each configuration type (e.g., 'enb', 'sib')
         config.configObjTypeList.forEach(typeItem => {
-            // The prefix (e.g., "sib") used for property key generation
             const prefix = typeItem.mmlCommandNamePrefix;
-            // The category name (e.g., "sib")
             const category = typeItem.configType || prefix;
-
             typeItem.configObjList.forEach(rootObj => {
                 this.processNode(rootObj, prefix, category, [], result);
             });
         });
-
         return result;
     }
 
-    /**
-     * Recursive function to process nodes and their children
-     * @param obj - Current ConfigObj
-     * @param keyPrefix - The cumulative prefix for the JSON key (e.g., "sibSib1")
-     * @param category - The category string
-     * @param pathStack - Array of dataNames to build node_path (e.g., ["sib1", "sched_info"])
-     * @param result - Reference to the result object
-     */
-    private processNode(
-        obj: ConfigObj,
-        keyPrefix: string,
-        category: string,
-        pathStack: string[],
-        result: ConfMapConfig
-    ): void {
-
-        // 1. Construct the unique key for this entry
-        // Strategy: Concatenate parent prefix + current postfix (or abbreviation/title if postfix missing)
-        // Example: "sib" + "Sib1" = "sibSib1"
+    private processNode(obj: ConfigObj, keyPrefix: string, category: string, pathStack: string[], result: ConfMapConfig): void {
         const currentKeyPart = obj.mmlCommandNamePosfix || this.toPascalCase(obj.abbreviation || obj.dataName);
         const uniqueKey = keyPrefix + currentKeyPart;
-
-        // 2. Construct the node_path
-        // Example: /sib1/sched_info/0
         const currentPathStack = [...pathStack, obj.dataName];
         const nodePath = '/' + currentPathStack.join('/');
-
-        // 3. Build the entry
         result[uniqueKey] = {
-            category: category,
-            class_name: obj.className || 'mo', // Default to 'mo' if missing
+            category,
+            class_name: obj.className || 'mo',
             operation_types: obj.operationTypes.map(op => op.operationName),
             node_path: nodePath,
             filter: this.generateFilterString(obj)
         };
-
-        // 4. Process Children (Recursion)
         if (obj.configObjList && obj.configObjList.length > 0) {
             obj.configObjList.forEach(child => {
-                // Pass the *current uniqueKey* as the prefix for the child
-                // This creates keys like "sibSib1" -> "sibSib1SchedulingInfo"
                 this.processNode(child, uniqueKey, category, currentPathStack, result);
             });
         }
     }
 
-    /**
-     * Helper to create the comma-separated filter string from parameters
-     */
     private generateFilterString(obj: ConfigObj): string {
-        if (!obj.params || obj.params.length === 0) {
-            return '';
-        }
+        if (!obj.params || obj.params.length === 0) return '';
         return obj.params.map(p => p.dataName).join(',');
     }
 
-    /**
-     * Helper to ensure key parts are PascalCase (Capitalized) to match example style
-     * e.g., "scheduling_info" -> "SchedulingInfo"
-     */
     private toPascalCase(str: string): string {
         if (!str) return '';
         return str
@@ -345,62 +641,40 @@ export class ExportConfig {
 
     private convertToCommands(treeData: ENodeBConfig): ICommand[] {
         const flattenedCommands: ICommand[] = [];
-
         if (treeData.configObjTypeList) {
             treeData.configObjTypeList.forEach((typeItem: ConfigObjType) => {
                 if (typeItem.configObjList) {
-                    // Start recursion. 
-                    // The base 'parentPath' is the configType (e.g., "ENodeBFunction").
                     typeItem.configObjList.forEach((obj: ConfigObj) => {
-                        flattenedCommands.push(
-                            ...this.processConfigObject(obj, typeItem.configType)
-                        );
+                        flattenedCommands.push(...this.processConfigObject(obj, typeItem.configType));
                     });
                 }
             });
         }
-
         return flattenedCommands;
     }
 
-    /**
-     * Recursive function to process an object and its children.
-     * @param obj The current object to process.
-     * @param parentPath The accumulated path name of the parent (used as pmoName).
-     */
     private processConfigObject(obj: ConfigObj, parentPath: string): ICommand[] {
         const results: ICommand[] = [];
-
-        // 1. Map the current ConfigObj to ICommand
         const command: ICommand = {
             module: obj.module,
             id: obj.configObjId,
-            pmoName: `${parentPath}.${obj.dataName}`,            // Current pmoName is the path passed from parent
-            name: obj.mmlCommandNamePosfix, // Mapped from mmlCommandNamePosfix
+            pmoName: `${parentPath}.${obj.dataName}`,
+            name: obj.mmlCommandNamePosfix,
             title: obj.title,
             commands: this.mapOperations(obj.operationTypes, obj.params)
         };
-
         results.push(command);
-
-        // 2. Prepare the path for children
-        // "join parent dataName or parent configType with ."
-        // The next level's parentPath is: [Current Parent Path].[Current Data Name]
         const nextPath = `${parentPath}.${obj.dataName}`;
-
-        // 3. Recursively process children if they exist
         if (obj.configObjList && obj.configObjList.length > 0) {
             obj.configObjList.forEach((child: ConfigObj) => {
                 results.push(...this.processConfigObject(child, nextPath));
             });
         }
-
         return results;
     }
 
     private mapOperations(ops: OperationType[], params: Parameter[]) {
         if (!ops) return [];
-
         return ops.map(op => ({
             msgId: op.msgId,
             name: op.operationName,
