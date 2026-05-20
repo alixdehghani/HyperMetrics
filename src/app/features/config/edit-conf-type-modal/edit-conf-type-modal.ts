@@ -17,12 +17,12 @@ export class EditConfTypeModalComponent implements OnInit {
 
   readonly config = input<ConfigObjType | null>(null);
   readonly index = input<number | null>(null);
+  readonly ratTypeIndex = input<number>(0); // path[0]
   readonly mode = input.required<'edit' | 'view' | 'create'>();
   readonly close = output<void>();
 
   confTypeForm!: FormGroup;
 
-  /** Inserted by Angular inject() migration for backwards compatibility */
   constructor(...args: unknown[]);
 
   constructor() { }
@@ -34,7 +34,7 @@ export class EditConfTypeModalComponent implements OnInit {
       alert('Invalid config provided to EditConfTypeModalComponent');
       // TODO: The 'emit' function requires a mandatory void argument
       this.close.emit();
-      return;      
+      return;
     }
     if (mode === 'edit' && this.index() === null) {
       alert('Invalid index provided to EditConfTypeModalComponent');
@@ -50,8 +50,10 @@ export class EditConfTypeModalComponent implements OnInit {
     if (mode === 'view') {
       this.confTypeForm.disable();
     }
-    if(mode === 'create') {
-      this.confTypeForm.get('configTypeId')?.setValue(this.treeService.generateNewIdForConfigType())
+    if (mode === 'create') {
+      this.confTypeForm.get('configTypeId')?.setValue(
+        this.treeService.generateNewIdForConfigType(this.ratTypeIndex())
+      );
     }
   }
 
@@ -59,9 +61,16 @@ export class EditConfTypeModalComponent implements OnInit {
     if (this.confTypeForm.valid) {
       const { configType, mmlCommandNamePrefix, configTypeId } = this.confTypeForm.value;
       if (this.mode() === 'create') {
-        this.treeService.addConfigType({ configType, mmlCommandNamePrefix, configTypeId, configObjList: [] });
+        this.treeService.addConfigType(
+          this.ratTypeIndex(),
+          { configType, mmlCommandNamePrefix, configTypeId, configObjList: [] }
+        );
       } else {
-        this.treeService.updateConfigType(this.index()!, { configType, mmlCommandNamePrefix, configTypeId, configObjList: this.config()?.configObjList || [] } );
+        this.treeService.updateConfigType(
+          this.ratTypeIndex(),
+          this.index()!,
+          { configType, mmlCommandNamePrefix, configTypeId, configObjList: this.config()?.configObjList || [] }
+        );
       }
       // TODO: The 'emit' function requires a mandatory void argument
       this.close.emit();

@@ -1,0 +1,16 @@
+@if(routeService.isLoadingRoute()) {
+<div class="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-100 p-4">
+    <div class="rounded-lg w-full max-w-3xl p-6 relative">
+        <div class="flex items-center justify-center h-screen">
+            <div
+                class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(59,130,246,0.7)]">
+            </div>
+        </div>
+    </div>
+</div>
+}
+<router-outlet />
+<footer
+    class="fixed left-0 right-0 mx-2 min-w-[350px] md:max-w-[350px] md:mx-auto shadow-lg bottom-[calc(env(safe-area-inset-bottom)+12px)] bg-black/10 rounded-xl backdrop-blur-md">
+    <user-navigation-panel class="h-[60px]" [navItems]="navItems()" />
+</footer>

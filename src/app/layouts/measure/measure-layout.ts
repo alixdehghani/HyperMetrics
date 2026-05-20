@@ -31,6 +31,11 @@ export class MeasureLayout {
             name: 'Hyper Config',
             url: '/config',
             image: 'config.png'
+        },
+        {
+            name: 'alarm',
+            url: '/alarm',
+            image: 'config.png'
         }
     ])
 }

@@ -18,7 +18,7 @@ const sibSetting = loadJson("sib_setting.json");
 const enbSetting = loadJson("enb_setting.json");
 const drbSetting = loadJson("drb_setting.json");
 const rrSetting  = loadJson("rr_setting.json");
-
+const alarm = loadJson("bsc_alarm-info.json")
 // --- Index helpers -----------------------------------------------------------
 
 // commands by name

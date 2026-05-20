@@ -1,23 +1,57 @@
 // services/enodeb-tree.service.ts
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { ENodeBConfig, ConfigObjType, ConfigObj, OperationType, Parameter } from './enodeb-config.model';
+import { ENodeBConfig, RatType, ConfigObjType, ConfigObj, OperationType, Parameter } from './enodeb-config.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ENodeBTreeService {
+  private readonly STORAGE_KEY = 'enodeb_config';
   private configSubject = new BehaviorSubject<ENodeBConfig | null>(null);
   public config$: Observable<ENodeBConfig | null> = this.configSubject.asObservable();
 
-  constructor() { }
+  constructor() {
+    this._loadFromStorage(); 
+  }
+
+  private _loadFromStorage(): void {
+    try {
+      const raw = localStorage.getItem(this.STORAGE_KEY);
+      if (raw) {
+        this.configSubject.next(JSON.parse(raw));
+      }
+    } catch {
+      localStorage.removeItem(this.STORAGE_KEY);
+    }
+  }
+
+  private _saveToStorage(config: ENodeBConfig | null): void {
+    if (config) {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(config));
+    } else {
+      localStorage.removeItem(this.STORAGE_KEY);
+    }
+  }
 
   setConfig(config: ENodeBConfig): void {
     this.configSubject.next(config);
-  }
+    this._saveToStorage(config);
+  } 
 
   getConfig(): ENodeBConfig | null {
     return this.configSubject.value;
+  }
+
+    private _update(config: ENodeBConfig): void {
+    this.configSubject.next({ ...config });
+    this._saveToStorage(config);
+  }
+  // Helper: get configObjTypeList for a given ratTypeIndex
+  private getConfigObjTypeList(ratTypeIndex: number): ConfigObjType[] | null {
+    const config = this.getConfig();
+    if (!config || !config.ratTypeList[ratTypeIndex]) return null;
+    return config.ratTypeList[ratTypeIndex].configObjTypeList;
   }
 
   // Header Operations
@@ -27,267 +61,266 @@ export class ENodeBTreeService {
       config.neVersion = neVersion;
       config.neTypeId = neTypeId;
       config.neTypeName = neTypeName;
-      this.configSubject.next({ ...config });
+      this._update(config)
+    }
+  }
+
+  // RatType CRUD
+  addRatType(ratType: RatType): void {
+    const config = this.getConfig();
+    if (config) {
+      config.ratTypeList.push(ratType);
+      this._update(config)
+    }
+  }
+
+  updateRatType(index: number, ratType: RatType): void {
+    const config = this.getConfig();
+    if (config && config.ratTypeList[index]) {
+      config.ratTypeList[index] = ratType;
+      this._update(config)
+    }
+  }
+
+  deleteRatType(index: number): void {
+    const config = this.getConfig();
+    if (config) {
+      config.ratTypeList.splice(index, 1);
+      this._update(config)
     }
   }
 
   // ConfigObjType CRUD
-  addConfigType(configType: ConfigObjType): void {
+  // path[0] = ratTypeIndex, path[1] = configObjTypeIndex
+  addConfigType(ratTypeIndex: number, configType: ConfigObjType): void {
     const config = this.getConfig();
-    if (config) {
-      config.configObjTypeList.push(configType);
-      this.configSubject.next({ ...config });
+    if (config && config.ratTypeList[ratTypeIndex]) {
+      config.ratTypeList[ratTypeIndex].configObjTypeList.push(configType);
+      this._update(config)
     }
   }
 
-  updateConfigType(index: number, configType: ConfigObjType): void {
+  updateConfigType(ratTypeIndex: number, index: number, configType: ConfigObjType): void {
     const config = this.getConfig();
-    if (config && config.configObjTypeList[index]) {
-      config.configObjTypeList[index] = configType;
-      this.configSubject.next({ ...config });
+    const list = this.getConfigObjTypeList(ratTypeIndex);
+    if (config && list && list[index]) {
+      list[index] = configType;
+      this._update(config)
     }
   }
 
-  deleteConfigType(index: number): void {
+  deleteConfigType(ratTypeIndex: number, index: number): void {
     const config = this.getConfig();
-    if (config) {
-      config.configObjTypeList.splice(index, 1);
-      this.configSubject.next({ ...config });
+    const list = this.getConfigObjTypeList(ratTypeIndex);
+    if (config && list) {
+      list.splice(index, 1);
+      this._update(config)
     }
   }
 
-  generateNewIdForConfigType(): string {
-    const config = this.getConfig();
-    if (!config || !Array.isArray(config.configObjTypeList) || config.configObjTypeList.length === 0) {
-      return '101';
-    }
+  generateNewIdForConfigType(ratTypeIndex: number): string {
+    const list = this.getConfigObjTypeList(ratTypeIndex);
+    if (!list || list.length === 0) return '101';
 
     let maxId = 0;
-    for (const ct of config.configObjTypeList) {
+    for (const ct of list) {
       const raw = (ct as any).id ?? (ct as any).configTypeId ?? (ct as any).typeId ?? (ct as any).name;
       if (raw == null) continue;
-
       let num = 0;
       if (typeof raw === 'number') {
         num = raw;
       } else if (typeof raw === 'string') {
-        // extract leading/trailing digits (handles values like "3", "CT-3", "type_4")
         const m = raw.match(/(\d+)/g);
         if (m) {
-          // take the last numeric group to handle cases like "CT-3-v2"
           const parsed = parseInt(m[m.length - 1], 10);
           if (!isNaN(parsed)) num = parsed;
         }
       }
-
       if (num > maxId) maxId = num;
     }
-
     return String(maxId + 1);
   }
 
   // ConfigObj CRUD
+  // path[0] = ratTypeIndex, path[1] = configObjTypeIndex, path[2+] = nested configObjList indices
   addConfigObj(path: number[], configObj: ConfigObj): void {
     const config = this.getConfig();
-    if (config && config.configObjTypeList[path[0]]) {
-      if (path.length === 0) {
-        return;
-      }
-      if (path.length === 1) {
-        config?.configObjTypeList[path[0]].configObjList.push(configObj);
-        this.configSubject.next({ ...config });
-        return;
-      }
-      let parent: any = config.configObjTypeList[path[0]].configObjList[path[1]];
-      for (let i = 2; i < path.length; i++) {
-        if (!parent || !parent.configObjList) {
-          return;
-        }
-        parent = parent.configObjList[path[i]];
-      }
-      if (parent) {
-        parent.configObjList = parent.configObjList || [];
-        parent.configObjList.push(configObj);
-      }
-      this.configSubject.next({ ...config });
+    if (!config || path.length < 2) return;
+
+    const list = this.getConfigObjTypeList(path[0]);
+    if (!list || !list[path[1]]) return;
+
+    if (path.length === 2) {
+      list[path[1]].configObjList.push(configObj);
+      this._update(config)
+      return;
     }
+
+    let parent: any = list[path[1]].configObjList[path[2]];
+    for (let i = 3; i < path.length; i++) {
+      if (!parent || !parent.configObjList) return;
+      parent = parent.configObjList[path[i]];
+    }
+    if (parent) {
+      parent.configObjList = parent.configObjList || [];
+      parent.configObjList.push(configObj);
+    }
+    this._update(config)
   }
 
   updateConfigObj(path: number[], configObj: ConfigObj): void {
     const config = this.getConfig();
-    if (config && config.configObjTypeList[path[0]]) {
-      if (path.length === 0) {
-        return
+    if (!config || path.length < 3) return;
+
+    const list = this.getConfigObjTypeList(path[0]);
+    if (!list || !list[path[1]]) return;
+
+    if (path.length === 3) {
+      list[path[1]].configObjList[path[2]] = configObj;
+    } else {
+      let parent: any = list[path[1]].configObjList[path[2]];
+      for (let i = 3; i < path.length - 1; i++) {
+        if (!parent || !parent.configObjList) return;
+        parent = parent.configObjList[path[i]];
       }
-      if (path.length === 1) {
-        return;
+      const lastIdx = path[path.length - 1];
+      if (parent && parent.configObjList && parent.configObjList[lastIdx] !== undefined) {
+        parent.configObjList[lastIdx] = configObj;
       }
-      if (path.length === 2) {
-        config.configObjTypeList[path[0]].configObjList[path[1]] = configObj;
-      } else {
-        let parent: any = config.configObjTypeList[path[0]].configObjList[path[1]];
-        for (let i = 2; i < path.length - 1; i++) {
-          if (!parent || !parent.configObjList) {
-            return;
-          }
-          parent = parent.configObjList[path[i]];
-        }
-        const lastIdx = path[path.length - 1];
-        if (parent && parent.configObjList && parent.configObjList[lastIdx] !== undefined) {
-          parent.configObjList[lastIdx] = configObj;
-        }
-      }
-      this.configSubject.next({ ...config });
     }
+    this._update(config)
   }
 
-  deleteConfigObj(configTypeIndex: number, configObjIndex: number): void {
+  deleteConfigObj(ratTypeIndex: number, configTypeIndex: number, configObjIndex: number): void {
     const config = this.getConfig();
-    if (config && config.configObjTypeList[configTypeIndex]) {
-      config.configObjTypeList[configTypeIndex].configObjList.splice(configObjIndex, 1);
-      this.configSubject.next({ ...config });
+    const list = this.getConfigObjTypeList(ratTypeIndex);
+    if (config && list && list[configTypeIndex]) {
+      list[configTypeIndex].configObjList.splice(configObjIndex, 1);
+      this._update(config)
     }
   }
 
   generateNewIdForConfigObj(path: number[]): string {
-    const config = this.getConfig();
-    if (!config || path.length === 0) {
-      return '101';
-    }
-
-    const type = config.configObjTypeList[path[0]];
-    if (!type) {
-      return '101';
-    }
+    if (path.length < 2) return '101';
+    const list = this.getConfigObjTypeList(path[0]);
+    if (!list || !list[path[1]]) return '101';
 
     let maxNum = 100;
 
-    const traverse = (list: any[] | undefined) => {
-      if (!Array.isArray(list)) return;
-      for (const obj of list) {
+    const traverse = (objList: any[] | undefined) => {
+      if (!Array.isArray(objList)) return;
+      for (const obj of objList) {
         if (!obj) continue;
         const raw = (obj as any).id ?? (obj as any).configObjId ?? (obj as any).objId ?? (obj as any).name ?? '';
         if (raw != null) {
-          const s = String(raw);
-            const m = s.match(/(\d+)/g);
-            if (m) {
-              const parsed = parseInt(m[m.length - 1], 10);
-              if (!isNaN(parsed) && parsed > maxNum) {
-                maxNum = parsed;
-              }
-            }
+          const m = String(raw).match(/(\d+)/g);
+          if (m) {
+            const parsed = parseInt(m[m.length - 1], 10);
+            if (!isNaN(parsed) && parsed > maxNum) maxNum = parsed;
+          }
         }
-        if (obj.configObjList) {
-          traverse(obj.configObjList);
-        }
+        if (obj.configObjList) traverse(obj.configObjList);
       }
     };
 
-    traverse(type.configObjList);
-
-    const next = Math.max(101, maxNum + 1);  
-    
-    return `${String(next)}`;
+    traverse(list[path[1]].configObjList);
+    return String(Math.max(101, maxNum + 1));
   }
 
   // OperationType CRUD
+  // path[0] = ratTypeIndex, path[1] = configObjTypeIndex, path[2+] = configObjList indices
   addOperationType(path: number[], operation: OperationType): void {
     const config = this.getConfig();
-    if (config && config.configObjTypeList[path[0]]) {
-      if (path.length === 0 || path.length === 1) {
-        return;
-      }
-      let parent: any = config.configObjTypeList[path[0]].configObjList[path[1]];
-      for (let i = 2; i < path.length; i++) {
-        if (!parent || !parent.configObjList) {
-          return;
-        }
-        parent = parent.configObjList[path[i]];
-      }
-      if (parent) {
-        parent.operationTypes = parent.operationTypes || [];
-        parent.operationTypes.push(operation);
-      }
-      this.configSubject.next({ ...config });
+    if (!config || path.length < 3) return;
+
+    const list = this.getConfigObjTypeList(path[0]);
+    if (!list || !list[path[1]]) return;
+
+    let parent: any = list[path[1]].configObjList[path[2]];
+    for (let i = 3; i < path.length; i++) {
+      if (!parent || !parent.configObjList) return;
+      parent = parent.configObjList[path[i]];
     }
+    if (parent) {
+      parent.operationTypes = parent.operationTypes || [];
+      parent.operationTypes.push(operation);
+    }
+    this._update(config)
   }
 
   updateOperationType(path: number[], operation: OperationType): void {
     const config = this.getConfig();
-    if (config && config.configObjTypeList[path[0]]) {
-      if (path.length === 0 || path.length === 1) {
-        return;
-      }
-      let parent: any = config.configObjTypeList[path[0]].configObjList[path[1]];
-      for (let i = 2; i < path.length - 1; i++) {
-        if (!parent || !parent.configObjList) {
-          return;
-        }
-        parent = parent.configObjList[path[i]];
-      }
-      const lastIdx = path[path.length - 1];
-      if (parent && parent.operationTypes && parent.operationTypes[lastIdx] !== undefined) {
-        parent.operationTypes[lastIdx] = operation;
-      }
-      this.configSubject.next({ ...config });
+    if (!config || path.length < 4) return;
+
+    const list = this.getConfigObjTypeList(path[0]);
+    if (!list || !list[path[1]]) return;
+
+    let parent: any = list[path[1]].configObjList[path[2]];
+    for (let i = 3; i < path.length - 1; i++) {
+      if (!parent || !parent.configObjList) return;
+      parent = parent.configObjList[path[i]];
     }
+    const lastIdx = path[path.length - 1];
+    if (parent && parent.operationTypes && parent.operationTypes[lastIdx] !== undefined) {
+      parent.operationTypes[lastIdx] = operation;
+    }
+    this._update(config)
   }
 
-  deleteOperationType(configTypeIndex: number, configObjIndex: number, operationIndex: number): void {
+  deleteOperationType(ratTypeIndex: number, configTypeIndex: number, configObjIndex: number, operationIndex: number): void {
     const config = this.getConfig();
-    if (config && config.configObjTypeList[configTypeIndex]?.configObjList[configObjIndex]) {
-      config.configObjTypeList[configTypeIndex].configObjList[configObjIndex].operationTypes.splice(operationIndex, 1);
-      this.configSubject.next({ ...config });
+    const list = this.getConfigObjTypeList(ratTypeIndex);
+    if (config && list && list[configTypeIndex]?.configObjList?.[configObjIndex]?.operationTypes) {
+        list[configTypeIndex].configObjList[configObjIndex].operationTypes.splice(operationIndex, 1);
+        this._update(config)
     }
   }
 
   // Parameter CRUD
+  // path[0] = ratTypeIndex, path[1] = configObjTypeIndex, path[2+] = configObjList indices
   addParameter(path: number[], parameter: Parameter): void {
     const config = this.getConfig();
-    if (config && config.configObjTypeList[path[0]]) {
-      if (path.length === 0 || path.length === 1) {
-        return;
-      }
-      let parent: any = config.configObjTypeList[path[0]].configObjList[path[1]];
-      for (let i = 2; i < path.length - 1; i++) {
-        if (!parent || !parent.configObjList) {
-          return;
-        }
-        parent = parent.configObjList[path[i]];
-      }
-      if (parent) {
-        parent.params = parent.params || [];
-        parent.params.push(parameter);
-      }
-      this.configSubject.next({ ...config });
+    if (!config || path.length < 3) return;
+
+    const list = this.getConfigObjTypeList(path[0]);
+    if (!list || !list[path[1]]) return;
+
+    let parent: any = list[path[1]].configObjList[path[2]];
+    for (let i = 3; i < path.length - 1; i++) {
+      if (!parent || !parent.configObjList) return;
+      parent = parent.configObjList[path[i]];
     }
+    if (parent) {
+      parent.params = parent.params || [];
+      parent.params.push(parameter);
+    }
+    this._update(config)
   }
 
   updateParameter(path: number[], parameter: Parameter): void {
     const config = this.getConfig();
-    if (config && config.configObjTypeList[path[0]]) {
-      if (path.length === 0 || path.length === 1) {
-        return;
-      }
-      let parent: any = config.configObjTypeList[path[0]].configObjList[path[1]];
-      for (let i = 2; i < path.length - 1; i++) {
-        if (!parent || !parent.configObjList) {
-          return;
-        }
-        parent = parent.configObjList[path[i]];
-      }
-      if (parent && parent.params && parent.params[path[path.length - 1]] !== undefined) {
-        parent.params[path[path.length - 1]] = parameter;
-      }
-      this.configSubject.next({ ...config });
+    if (!config || path.length < 3) return;
+
+    const list = this.getConfigObjTypeList(path[0]);
+    if (!list || !list[path[1]]) return;
+
+    let parent: any = list[path[1]].configObjList[path[2]];
+    for (let i = 3; i < path.length - 1; i++) {
+      if (!parent || !parent.configObjList) return;
+      parent = parent.configObjList[path[i]];
     }
+    if (parent && parent.params && parent.params[path[path.length - 1]] !== undefined) {
+      parent.params[path[path.length - 1]] = parameter;
+    }
+    this._update(config)
   }
 
-  deleteParameter(configTypeIndex: number, configObjIndex: number, paramIndex: number): void {
+  deleteParameter(ratTypeIndex: number, configTypeIndex: number, configObjIndex: number, paramIndex: number): void {
     const config = this.getConfig();
-    if (config && config.configObjTypeList[configTypeIndex]?.configObjList[configObjIndex]) {
-      config.configObjTypeList[configTypeIndex].configObjList[configObjIndex].params.splice(paramIndex, 1);
-      this.configSubject.next({ ...config });
+    const list = this.getConfigObjTypeList(ratTypeIndex);
+    if (config && list && list[configTypeIndex]?.configObjList?.[configObjIndex]?.params) {
+        list[configTypeIndex].configObjList[configObjIndex].params.splice(paramIndex, 1);
+        this._update(config)
     }
   }
 }
