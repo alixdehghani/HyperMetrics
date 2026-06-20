@@ -24,6 +24,11 @@ export class Home implements OnInit {
             name: 'Hyper Config',
             url: '/config',
             image: 'config.png'
+        },
+        {
+            name: 'alarm',
+            url: '/alarm',
+            image: 'config.png'
         }
     ])
     constructor() { }

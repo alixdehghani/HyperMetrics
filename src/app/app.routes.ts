@@ -14,6 +14,10 @@ export const routes: Routes = [
         loadChildren: () => import('./features/config/config-pages').then(m => m.configRoutes)
     },
     {
+        path: 'alarm',
+        loadChildren: () => import('./features/alarm/alarm-pages').then(m => m.AlarmRoutes)
+    },
+    {
         path: '**',
         redirectTo: 'home'
     },

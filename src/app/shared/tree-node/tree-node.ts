@@ -1,12 +1,10 @@
-// components/tree-node/tree-node.component.ts
 import { Component, computed, input, output, signal } from '@angular/core';
-
 import { TreeNodeType } from '../../features/config/enodeb-config.model';
+import { NgIf, NgFor, NgClass } from '@angular/common';
 
 @Component({
     selector: 'app-tree-node',
     standalone: true,
-    imports: [],
     templateUrl: './tree-node.html',
     styleUrls: ['./tree-node.scss']
 })
@@ -17,81 +15,63 @@ export class TreeNodeComponent {
     readonly isLast = input(false);
     readonly searchTerm = input<string>('');
     readonly forceShow = input<boolean>(false);
-    readonly add = output<{
-        type: TreeNodeType;
-        path: number[];
-    }>();
-    readonly view = output<{
-        type: TreeNodeType;
-        path: number[];
-    }>();
-    readonly edit = output<{
-        type: TreeNodeType;
-        path: number[];
-    }>();
-    readonly delete = output<{
-        type: TreeNodeType;
-        path: number[];
-    }>();
+    
+    readonly add = output<{ type: TreeNodeType; path: number[]; }>();
+    readonly view = output<{ type: TreeNodeType; path: number[]; }>();
+    readonly edit = output<{ type: TreeNodeType; path: number[]; }>();
+    readonly delete = output<{ type: TreeNodeType; path: number[]; }>();
 
-    // private _isExpanded = signal(false);
-    forceCollapse = true;
+    // Use signal for expanded state so it actually toggles
+    private _isExpanded = signal(false); // Start expanded by default
 
-    // Compute: Does this specific node match the text?
     readonly isSelfMatch = computed(() => {
         const term = this.searchTerm().toLowerCase();
         if (!term) return false;
-        this.forceCollapse = false;
         return this.getTitleForNode(this.node(), this.nodeType()).toLowerCase().includes(term);
     });
 
-    // Compute: Should we force our children to show?
-    // True if WE match, or if WE were forced by our parent.
     readonly forceChildren = computed(() => {
         return this.isSelfMatch() || this.forceShow();
     });
 
-    // Expanded State Logic
-    isExpanded = computed(() => {
-        // 1. If searching and we are part of a "forced" subtree (parent matched), expand.
-        if (this.forceShow()) return true;
-
-        // 2. If we match the search term ourselves, expand to show our children.
-        if (this.isSelfMatch()) return true;
-
-        // 3. If we have matching descendants (path to match), expand.
-        const term = this.searchTerm().toLowerCase();
-        if (term && this.hasMatchingChildren(this.node(), this.nodeType(), term)) {
-            return true;
-        }
-
-        // 4. Default manual toggle
-        return true
+    // Fixed: Actually use the signal state
+   isExpanded = computed(() => {
+    const term = this.searchTerm().toLowerCase();
+    if (this.forceShow()) return true;
+    if (this.isSelfMatch()) return true;
+    if (term && this.hasMatchingChildren(this.node(), this.nodeType(), term)) return true;
+    return this._isExpanded(); // Use the signal!
     });
 
-    toggleExpand(): void {        
-        this.forceCollapse = !this.forceCollapse;
-    }
-    
 
-    // ... existing getIcon / getTitle ...
+    toggleExpand(): void {        
+        this._isExpanded.update(v => !v);
+    }
+
     getIcon(): string {
         const icons: Record<string, string> = {
-            root: '📁', configType: '📂', configObj: '📄', operationType: '⚙️', param: '🔧',
+            root: '📁',
+            configType: '📂',
+            configObj: '📄',
+            operationType: '⚙️',
+            param: '🔧',
         };
         return icons[this.nodeType()] || '📌';
     }
 
     getTitleForNode(data: any, type: TreeNodeType): string {
-        if (!data) return '';
-        switch (type) {
-            case 'root': return `${data.neTypeName}`
-            case 'configType': return `${data.configType} (${data.configTypeId})`;
-            case 'configObj': return `${data.parameterName} - ${data.dataName}`;
-            case 'operationType': return `${data.operationName}`;
-            case 'param': return `${data.dataName} [${data.abbreviation}]`;
-            default: return 'Unknown';
-        }
+    if (!data) return '';
+    // For configObj, prefer confObjDetail data
+    const detail = type === 'configObj' ? (data.confObjDetail || data) : data;
+    
+    switch (type) {
+        case 'root': return `${data.neTypeName || 'Root'}`;
+        case 'configType': return `${data.configType || 'Unknown'} (${data.configTypeId || '?'})`;
+        case 'configObj': return `${detail.parameterName || detail.title || detail.dataName || 'Unnamed'} - ${detail.dataName || ''}`;
+        case 'operationType': return `${data.operationName || 'Unnamed'}`;
+        case 'param': return `${data.dataName || ''} [${data.abbreviation || ''}]`;
+        default: return 'Unknown';
+    }
     }
 
     getTitle(): string {
@@ -102,13 +82,14 @@ export class TreeNodeComponent {
         const title = this.getTitle();
         const term = this.searchTerm();
         if (!term) return title;
-        const re = new RegExp(`(${term})`, 'gi');
+        const re = new RegExp(`(${this.escapeRegex(term)})`, 'gi');
         return title.replace(re, '<mark>$1</mark>');
     }
 
-    /**
-   * Decides if a CHILD node should be rendered in the DOM.
-   */
+    private escapeRegex(str: string): string {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
     shouldShowChild(data: any, type: TreeNodeType): boolean {
         const term = this.searchTerm().toLowerCase();
         if (!term) return true;
@@ -132,26 +113,64 @@ export class TreeNodeComponent {
         // Check self
         const title = this.getTitleForNode(data, type).toLowerCase();
         if (title.includes(term)) return true;
-
-        // Check children
         return this.hasMatchingChildren(data, type, term);
     }
 
     hasChildren(): boolean {
-        const nodeType = this.nodeType();
-        if (nodeType === 'root') {
-            return true;
-        } else if (nodeType === 'configType') {
-            // const node = this.node();
-            return true;
-            // return node.configObjList && node.configObjList.length > 0;
-        } else if (nodeType === 'configObj') {
-            const node = this.node();
-            return true;
-            // return (node.operationTypes && node.operationTypes.length > 0) ||
-            //     (node.params && node.params.length > 0) || (node.configObjList && node.configObjList.length > 0);
+    const node = this.node();
+    if (!node) return false;
+    
+    const nodeType = this.nodeType();
+    switch (nodeType) {
+        case 'root':
+            return !!(node.ratTypeList && node.ratTypeList.length > 0);
+        case 'configType':
+            return !!(node.configObjList && node.configObjList.length > 0);
+        case 'configObj': {
+            const detail = node.confObjDetail || node;
+            return !!(detail.configObjList?.length || detail.operationTypes?.length || detail.params?.length);
         }
-        return false;
+        default:
+            return false;
+    }
+}
+
+    // Get children arrays for rendering
+    getChildren(): Array<{data: any, type: TreeNodeType}> {
+        const node = this.node();
+        if (!node) return [];
+        
+        const nodeType = this.nodeType();
+        const children: Array<{data: any, type: TreeNodeType}> = [];
+        
+        if (nodeType === 'root') {
+            (node.ratTypeList || []).forEach((rat: any, i: number) => {
+                // RAT types contain configObjTypeList
+                (rat.configObjTypeList || []).forEach((typeItem: any, j: number) => {
+                    children.push({ data: typeItem, type: 'configType' });
+                });
+            });
+        } else if (nodeType === 'configType') {
+            (node.configObjList || []).forEach((obj: any, i: number) => {
+                children.push({ data: obj, type: 'configObj' });
+            });
+        } else if (nodeType === 'configObj') {
+            const detail = node.confObjDetail || node;
+            // Add nested config objects
+            (detail.configObjList || []).forEach((obj: any, i: number) => {
+                children.push({ data: obj, type: 'configObj' });
+            });
+            // Add operation types
+            (detail.operationTypes || []).forEach((op: any, i: number) => {
+                children.push({ data: op, type: 'operationType' });
+            });
+            // Add parameters
+            (detail.params || []).forEach((param: any, i: number) => {
+                children.push({ data: param, type: 'param' });
+            });
+        }
+        
+        return children;
     }
 
     onView(output: { type: TreeNodeType, path: number[] }): void {
@@ -171,29 +190,27 @@ export class TreeNodeComponent {
     }
 
     getCopyArray(array: any[], item: any, item2: any = null): any[] {
-        if (item === null) {
-            return [...array];
-        }
-        if (item2 === null) {
-            return [...array, item];
-        }
+        if (item === null) return [...array];
+        if (item2 === null) return [...array, item];
         return [...array, item, item2];
     }
 
     private hasMatchingChildren(data: any, type: TreeNodeType, term: string): boolean {
         if (!data) return false;
-        // Helper to check list
+        
         const check = (list: any[], t: TreeNodeType) => list?.some(item => {
-            // Check item itself
             if (this.getTitleForNode(item, t).toLowerCase().includes(term)) return true;
-            // Recurse
             return this.hasMatchingChildren(item, t, term);
         });
 
-        return check(data.configObjTypeList, 'configType') ||
-            check(data.configObjList, 'configObj') ||
-            check(data.operationTypes, 'operationType') ||
-            check(data.params, 'param');
+        if (type === 'root') {
+            return (data.ratTypeList || []).some((rat: any) => 
+                check(rat.configObjTypeList, 'configType')
+            );
+        }
+        
+        return check(data.configObjList, 'configObj') ||
+               check(data.operationTypes, 'operationType') ||
+               check(data.params, 'param');
     }
-
 }

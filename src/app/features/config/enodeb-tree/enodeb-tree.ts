@@ -4,7 +4,7 @@ import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { ENodeBTreeService } from '../enodeb-tree.service';
 import { TreeNodeComponent } from '../../../shared/tree-node/tree-node';
 import { EditHeaderModalComponent } from '../edit-header-modal/edit-header-modal';
-import { ConfigObj, ConfigObjType, ENodeBConfig, OperationType, Parameter, TreeNodeType } from '../enodeb-config.model';
+import { ConfigObj, ConfigObjType, ENodeBConfig, OperationType, Parameter, RatType, TreeNodeType } from '../enodeb-config.model';
 import { HttpClient } from '@angular/common/http';
 import { EditConfTypeModalComponent } from '../edit-conf-type-modal/edit-conf-type-modal';
 import { EditConfObjModalComponent } from '../edit-conf-obj-modal/edit-conf-obj-modal';
@@ -58,6 +58,7 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
     /** Inserted by Angular inject() migration for backwards compatibility */
     constructor(...args: unknown[]);
     constructor() { }
+
     ngOnDestroy(): void {
         this.$destroy.next();
         this.$destroy.complete();
@@ -102,6 +103,12 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
         reader.readAsText(file);
     }
 
+    // Helper: get configObjTypeList from path[0]=ratTypeIndex
+    private getConfigObjTypeList(ratTypeIndex: number): ConfigObjType[] | null {
+        if (!this.config || !this.config.ratTypeList[ratTypeIndex]) return null;
+        return this.config.ratTypeList[ratTypeIndex].configObjTypeList;
+    }
+
     openHeaderModal(): void {
         this.showHeaderModal = true;
     }
@@ -134,6 +141,7 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
         this.path = [];
     }
 
+    // path[0]=ratTypeIndex, path[1]=configObjTypeIndex, path[2+]=nested
     onViewNode(output: { type: TreeNodeType, path: number[] }): void {
         console.log(output);
 
@@ -145,72 +153,68 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
         }
 
         if (output.type === 'configType') {
-            this.confTypeModalData = this.config?.configObjTypeList[output.path[0]] || null;
+            // path[0]=ratTypeIndex, path[1]=configObjTypeIndex
+            const list = this.getConfigObjTypeList(output.path[0]);
+            this.confTypeModalData = list?.[output.path[1]] || null;
             this.showConfTypeModal = true;
+            return;
         }
+
         if (output.type === 'configObj') {
-            if (this.config && this.config.configObjTypeList[output.path[0]]) {
-                if (output.path.length === 0) {
-                    return
-                }
-                if (output.path.length === 1) {
-                    return;
-                }
-                if (output.path.length === 2) {
-                    this.confObjModalData = this.config.configObjTypeList[output.path[0]].configObjList[output.path[1]];
-                } else {
-                    let parent: any = this.config.configObjTypeList[output.path[0]].configObjList[output.path[1]];
-                    for (let i = 2; i < output.path.length - 1; i++) {
-                        if (!parent || !parent.configObjList) {
-                            return;
-                        }
-                        parent = parent.configObjList[output.path[i]];
-                    }
-                    const lastIdx = output.path[output.path.length - 1];
-                    if (parent && parent.configObjList && parent.configObjList[lastIdx] !== undefined) {
-                        this.confObjModalData = parent.configObjList[lastIdx]
-                    }
-                }
-                this.showConfObjModal = true;
-            }
-        }
-        if (output.type === 'operationType') {
-            if (this.config && this.config.configObjTypeList[output.path[0]]) {
-                if (output.path.length === 0 || output.path.length === 1) {
-                    return;
-                }
-                let parent: any = this.config.configObjTypeList[output.path[0]].configObjList[output.path[1]];
-                for (let i = 2; i < output.path.length - 1; i++) {
-                    if (!parent || !parent.configObjList) {
-                        return;
-                    }
+            // path[0]=ratTypeIndex, path[1]=configObjTypeIndex, path[2]=configObjIndex, path[3+]=nested
+            const list = this.getConfigObjTypeList(output.path[0]);
+            if (!list || !list[output.path[1]] || output.path.length < 3) return;
+
+            if (output.path.length === 3) {
+                this.confObjModalData = list[output.path[1]].configObjList[output.path[2]];
+            } else {
+                let parent: any = list[output.path[1]].configObjList[output.path[2]];
+                for (let i = 3; i < output.path.length - 1; i++) {
+                    if (!parent || !parent.configObjList) return;
                     parent = parent.configObjList[output.path[i]];
                 }
                 const lastIdx = output.path[output.path.length - 1];
-                if (parent && parent.operationTypes && parent.operationTypes[lastIdx] !== undefined) {
-                    this.operationTypeModalData = parent.operationTypes[lastIdx];
+                if (parent && parent.configObjList && parent.configObjList[lastIdx] !== undefined) {
+                    this.confObjModalData = parent.configObjList[lastIdx];
                 }
+            }
+            this.showConfObjModal = true;
+            return;
+        }
+
+        if (output.type === 'operationType') {
+            // path[0]=ratTypeIndex, path[1]=configObjTypeIndex, path[2]=configObjIndex, path[3+]=nested/opIndex
+            const list = this.getConfigObjTypeList(output.path[0]);
+            if (!list || !list[output.path[1]] || output.path.length < 4) return;
+
+            let parent: any = list[output.path[1]].configObjList[output.path[2]];
+            for (let i = 3; i < output.path.length - 1; i++) {
+                if (!parent || !parent.configObjList) return;
+                parent = parent.configObjList[output.path[i]];
+            }
+            const lastIdx = output.path[output.path.length - 1];
+            if (parent && parent.operationTypes && parent.operationTypes[lastIdx] !== undefined) {
+                this.operationTypeModalData = parent.operationTypes[lastIdx];
             }
             this.showOperationTypeModal = true;
+            return;
         }
+
         if (output.type === 'param') {
-            if (this.config && this.config.configObjTypeList[output.path[0]]) {
-                if (output.path.length === 0 || output.path.length === 1) {
-                    return;
-                }
-                let parent: any = this.config.configObjTypeList[output.path[0]].configObjList[output.path[1]];
-                for (let i = 2; i < output.path.length - 1; i++) {
-                    if (!parent || !parent.configObjList) {
-                        return;
-                    }
-                    parent = parent.configObjList[output.path[i]];
-                }
-                if (parent) {
-                    parent.params = parent.params || [];
-                    this.confObjParamModalData = parent.params[output.path[output.path.length - 1]];
-                }
-                this.showConfObjParamModal = true;
+            const list = this.getConfigObjTypeList(output.path[0]);
+            if (!list || !list[output.path[1]] || output.path.length < 4) return;
+
+            let parent: any = list[output.path[1]].configObjList[output.path[2]];
+            for (let i = 3; i < output.path.length - 1; i++) {
+                if (!parent || !parent.configObjList) return;
+                parent = parent.configObjList[output.path[i]];
             }
+            if (parent) {
+                parent.params = parent.params || [];
+                this.confObjParamModalData = parent.params[output.path[output.path.length - 1]];
+            }
+            this.showConfObjParamModal = true;
+            return;
         }
         // Handle view node logic here
     }
@@ -218,26 +222,29 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
     onAddNode(output: { type: TreeNodeType, path: number[] }): void {
         this.path = output.path;
         this.mode = 'create';
-        if (output.type === 'root') {
-            return;
-        }
+
+        if (output.type === 'root') return;
+
         if (output.type === 'configType') {
             this.confTypeModalData = null;
             this.showConfTypeModal = true;
+            return;
         }
         if (output.type === 'configObj') {
             this.showConfObjModal = true;
             this.confObjModalData = null;
+            return;
         }
         if (output.type === 'operationType') {
             this.showOperationTypeModal = true;
             this.operationTypeModalData = null;
+            return;
         }
         if (output.type === 'param') {
             this.showConfObjParamModal = true;
             this.confObjParamModalData = null;
+            return;
         }
-        // Handle add node logic here
     }
 
     onEditNode(output: { type: TreeNodeType, path: number[] }): void {
@@ -246,93 +253,81 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
 
         if (output.type === 'root') {
             this.openHeaderModal();
+            return;
         }
 
         if (output.type === 'configType') {
-            this.confTypeModalData = this.config?.configObjTypeList[output.path[0]] || null;
+            const list = this.getConfigObjTypeList(output.path[0]);
+            this.confTypeModalData = list?.[output.path[1]] || null;
             this.showConfTypeModal = true;
+            return;
         }
+
         if (output.type === 'configObj') {
-            if (this.config && this.config.configObjTypeList[output.path[0]]) {
-                if (output.path.length === 0) {
-                    return
-                }
-                if (output.path.length === 1) {
-                    return;
-                }
-                if (output.path.length === 2) {
-                    this.confObjModalData = this.config.configObjTypeList[output.path[0]].configObjList[output.path[1]];
-                } else {
-                    let parent: any = this.config.configObjTypeList[output.path[0]].configObjList[output.path[1]];
-                    for (let i = 2; i < output.path.length - 1; i++) {
-                        if (!parent || !parent.configObjList) {
-                            return;
-                        }
-                        parent = parent.configObjList[output.path[i]];
-                    }
-                    const lastIdx = output.path[output.path.length - 1];
-                    if (parent && parent.configObjList && parent.configObjList[lastIdx] !== undefined) {
-                        this.confObjModalData = parent.configObjList[lastIdx]
-                    }
-                }
-                this.showConfObjModal = true;
-            }
-        }
-        if (output.type === 'operationType') {
-            if (this.config && this.config.configObjTypeList[output.path[0]]) {
-                if (output.path.length === 0 || output.path.length === 1) {
-                    return;
-                }
-                let parent: any = this.config.configObjTypeList[output.path[0]].configObjList[output.path[1]];
-                for (let i = 2; i < output.path.length - 1; i++) {
-                    if (!parent || !parent.configObjList) {
-                        return;
-                    }
+            const list = this.getConfigObjTypeList(output.path[0]);
+            if (!list || !list[output.path[1]] || output.path.length < 3) return;
+
+            if (output.path.length === 3) {
+                this.confObjModalData = list[output.path[1]].configObjList[output.path[2]];
+            } else {
+                let parent: any = list[output.path[1]].configObjList[output.path[2]];
+                for (let i = 3; i < output.path.length - 1; i++) {
+                    if (!parent || !parent.configObjList) return;
                     parent = parent.configObjList[output.path[i]];
                 }
                 const lastIdx = output.path[output.path.length - 1];
-                if (parent && parent.operationTypes && parent.operationTypes[lastIdx] !== undefined) {
-                    this.operationTypeModalData = parent.operationTypes[lastIdx];
+                if (parent && parent.configObjList && parent.configObjList[lastIdx] !== undefined) {
+                    this.confObjModalData = parent.configObjList[lastIdx];
                 }
             }
-            this.showOperationTypeModal = true;
-        }
-        if (output.type === 'param') {
-            if (this.config && this.config.configObjTypeList[output.path[0]]) {
-                if (output.path.length === 0 || output.path.length === 1) {
-                    return;
-                }
-                let parent: any = this.config.configObjTypeList[output.path[0]].configObjList[output.path[1]];
-                for (let i = 2; i < output.path.length - 1; i++) {
-                    if (!parent || !parent.configObjList) {
-                        return;
-                    }
-                    parent = parent.configObjList[output.path[i]];
-                }
-                if (parent) {
-                    parent.params = parent.params || [];
-                    this.confObjParamModalData = parent.params[output.path[output.path.length - 1]];
-                }
-                this.showConfObjParamModal = true;
-            }
+            this.showConfObjModal = true;
+            return;
         }
 
+        if (output.type === 'operationType') {
+            const list = this.getConfigObjTypeList(output.path[0]);
+            if (!list || !list[output.path[1]] || output.path.length < 4) return;
+
+            let parent: any = list[output.path[1]].configObjList[output.path[2]];
+            for (let i = 3; i < output.path.length - 1; i++) {
+                if (!parent || !parent.configObjList) return;
+                parent = parent.configObjList[output.path[i]];
+            }
+            const lastIdx = output.path[output.path.length - 1];
+            if (parent && parent.operationTypes && parent.operationTypes[lastIdx] !== undefined) {
+                this.operationTypeModalData = parent.operationTypes[lastIdx];
+            }
+            this.showOperationTypeModal = true;
+            return;
+        }
+
+        if (output.type === 'param') {
+            const list = this.getConfigObjTypeList(output.path[0]);
+            if (!list || !list[output.path[1]] || output.path.length < 4) return;
+
+            let parent: any = list[output.path[1]].configObjList[output.path[2]];
+            for (let i = 3; i < output.path.length - 1; i++) {
+                if (!parent || !parent.configObjList) return;
+                parent = parent.configObjList[output.path[i]];
+            }
+            if (parent) {
+                parent.params = parent.params || [];
+                this.confObjParamModalData = parent.params[output.path[output.path.length - 1]];
+            }
+            this.showConfObjParamModal = true;
+            return;
+        }
     }
 
     onDeleteNode(output: { type: TreeNodeType, path: number[] }): void {
-        if (!this.config) {
-            return;
-        }
+        if (!this.config) return;
 
         const confirmed = window.confirm(`Are you sure you want to delete this ${output.type}?`);
-        if (!confirmed) {
-            return;
-        }
+        if (!confirmed) return;
 
         const path = output.path;
 
         if (output.type === 'root') {
-            // remove whole config
             this.config = null;
             this.treeService.setConfig(this.config as any);
             this.path = [];
@@ -340,9 +335,10 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
         }
 
         if (output.type === 'configType') {
-            const idx = path[0];
-            if (this.config.configObjTypeList && this.config.configObjTypeList[idx] !== undefined) {
-                this.config.configObjTypeList.splice(idx, 1);
+            // path[0]=ratTypeIndex, path[1]=configObjTypeIndex
+            const list = this.getConfigObjTypeList(path[0]);
+            if (list && list[path[1]] !== undefined) {
+                list.splice(path[1], 1);
             }
             this.treeService.setConfig(this.config);
             this.path = [];
@@ -350,25 +346,19 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
         }
 
         if (output.type === 'configObj') {
-            if (!this.config.configObjTypeList[path[0]]) {
-                return;
-            }
-            if (path.length < 2) {
-                return;
-            }
-            const typeObj = this.config.configObjTypeList[path[0]];
-            if (path.length === 2) {
-                // remove from top-level configObjList
-                if (typeObj.configObjList && typeObj.configObjList[path[1]] !== undefined) {
-                    typeObj.configObjList.splice(path[1], 1);
+            // path[0]=ratTypeIndex, path[1]=configObjTypeIndex, path[2]=configObjIndex, path[3+]=nested
+            const list = this.getConfigObjTypeList(path[0]);
+            if (!list || !list[path[1]] || path.length < 3) return;
+
+            const typeObj = list[path[1]];
+            if (path.length === 3) {
+                if (typeObj.configObjList && typeObj.configObjList[path[2]] !== undefined) {
+                    typeObj.configObjList.splice(path[2], 1);
                 }
             } else {
-                // find parent configObj that contains the target list
-                let parent: any = typeObj.configObjList[path[1]];
-                for (let i = 2; i < path.length - 1; i++) {
-                    if (!parent || !parent.configObjList) {
-                        return;
-                    }
+                let parent: any = typeObj.configObjList[path[2]];
+                for (let i = 3; i < path.length - 1; i++) {
+                    if (!parent || !parent.configObjList) return;
                     parent = parent.configObjList[path[i]];
                 }
                 const lastIdx = path[path.length - 1];
@@ -382,17 +372,13 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
         }
 
         if (output.type === 'operationType') {
-            if (!this.config.configObjTypeList[path[0]]) {
-                return;
-            }
-            if (path.length < 3) {
-                return;
-            }
-            let parent: any = this.config.configObjTypeList[path[0]].configObjList[path[1]];
-            for (let i = 2; i < path.length - 1; i++) {
-                if (!parent || !parent.configObjList) {
-                    return;
-                }
+            // path[0]=ratTypeIndex, path[1]=configObjTypeIndex, path[2]=configObjIndex, path[3+]=nested/opIndex
+            const list = this.getConfigObjTypeList(path[0]);
+            if (!list || !list[path[1]] || path.length < 4) return;
+
+            let parent: any = list[path[1]].configObjList[path[2]];
+            for (let i = 3; i < path.length - 1; i++) {
+                if (!parent || !parent.configObjList) return;
                 parent = parent.configObjList[path[i]];
             }
             const lastIdx = path[path.length - 1];
@@ -405,17 +391,12 @@ export class ENodeBTreeComponent implements OnInit, OnDestroy {
         }
 
         if (output.type === 'param') {
-            if (!this.config.configObjTypeList[path[0]]) {
-                return;
-            }
-            if (path.length < 3) {
-                return;
-            }
-            let parent: any = this.config.configObjTypeList[path[0]].configObjList[path[1]];
-            for (let i = 2; i < path.length - 1; i++) {
-                if (!parent || !parent.configObjList) {
-                    return;
-                }
+            const list = this.getConfigObjTypeList(path[0]);
+            if (!list || !list[path[1]] || path.length < 4) return;
+
+            let parent: any = list[path[1]].configObjList[path[2]];
+            for (let i = 3; i < path.length - 1; i++) {
+                if (!parent || !parent.configObjList) return;
                 parent = parent.configObjList[path[i]];
             }
             const lastIdx = path[path.length - 1];

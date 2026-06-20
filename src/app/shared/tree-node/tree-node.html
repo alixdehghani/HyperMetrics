@@ -1,13 +1,16 @@
 <!-- components/tree-node/tree-node.component.html -->
 <div class="container">
-  <div class="flex items-center py-2 px-3 hover:bg-gray-50 rounded-lg group transition-all duration-200 top-10 z-0" [class.sticky]="nodeType() === 'configType'">
+  <div class="flex items-center py-2 px-3 hover:bg-gray-50 rounded-lg group transition-all duration-200 top-10 z-0"
+       [class.sticky]="nodeType() === 'configType'"
+       [class.bg-yellow-50]="isSelfMatch()">
 
     <!-- Expand/Collapse Button -->
     @if (hasChildren()) {
     <button (click)="toggleExpand()"
       class="mr-2 p-1 hover:bg-gray-200 rounded transition-colors duration-150 cursor-pointer">
-      <svg class="w-4 h-4 text-gray-600 transition-transform duration-200" [class.rotate-90]="isExpanded() && !forceCollapse" fill="none"
-        stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-4 h-4 text-gray-600 transition-transform duration-200"
+           [class.rotate-90]="isExpanded()"
+           fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
       </svg>
     </button>
@@ -23,7 +26,7 @@
     <span class="flex-1 text-sm font-medium text-gray-700" [innerHTML]="getHighlightedTitle()"></span>
 
     <!-- Action Buttons -->
-    <div class="flex items-center gap-1">
+    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
 
       <button (click)="onView({type: nodeType(), path: path()})"
         class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer"
@@ -53,114 +56,195 @@
   </div>
 
   <!-- Children -->
-  @if (isExpanded() && !forceCollapse) {
+  @if (isExpanded() && hasChildren()) {
   <div class="ml-6 border-l-2 border-gray-200 pl-4 mt-1">
-    @if (node().configObjTypeList) {
-    <div class="flex justify-between items-center hover:bg-gray-100 py-2 px-3 rounded-lg">
-      <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Configuration Types</div>
-      <div class="flex items-center gap-1">
-        <button (click)="onAdd({type: 'configType', path: path()})"
-          class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer"
-          title="Add new Configuration Object">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
-      </div>
-    </div>
-    @for (child of node().configObjTypeList; track $index) {
-    @if (shouldShow(child, 'configType')) {
-    <app-tree-node [node]="child" [nodeType]="'configType'" [path]="getCopyArray(path(), $index)"
-      [searchTerm]="searchTerm()" (view)="view.emit($event)" (add)="add.emit($event)" (edit)="edit.emit($event)"
-      (delete)="delete.emit($event)"></app-tree-node>
-    }
-    } @empty {
-    <div class="text-gray-300 ml-2 px-3 rounded-lg">
-      No Type added.
-    </div>
-    }
-    }
-    <!-- 2. Iterate Config Objects -->
-    @if (node().configObjList) {
-    <div class="flex justify-between items-center hover:bg-gray-100 py-2 px-3 rounded-lg">
-      <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Configuration Objects</div>
-      <div class="flex items-center gap-1">
-        <button (click)="onAdd({type: 'configObj', path: path()})"
-          class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer"
-          title="Add new Configuration Object">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
-      </div>
-    </div>
-    @for (child of node().configObjList; track $index) {
-    @if (shouldShowChild(child, 'configObj')) {
-    <app-tree-node [node]="child" [nodeType]="'configObj'" [path]="getCopyArray(path(), $index)"
-      [searchTerm]="searchTerm()" [forceShow]="forceChildren()" (view)="view.emit($event)" (add)="add.emit($event)"
-      (edit)="edit.emit($event)" (delete)="delete.emit($event)"></app-tree-node>
-    }
-    } @empty {
-    <div class="text-gray-300 ml-2 px-3 rounded-lg">
-      No Configuration added.
-    </div>
-    }
+
+    <!-- 1. ROOT: Show RAT Types -->
+    @if (nodeType() === 'root') {
+      @for (rat of node().ratTypeList; track rat.ratTypeId || $index; let ratIdx = $index) {
+        @if (shouldShow(rat, 'configType') || shouldShowChild(rat, 'configType')) {
+          <!-- RAT Header -->
+          <div class="flex items-center py-2 px-3 hover:bg-gray-50 rounded-lg mt-2">
+            <span class="text-xl mr-3">🗼</span>
+            <span class="flex-1 text-sm font-semibold text-gray-800">{{ rat.ratTypeName }} ({{ rat.ratTypeId }})</span>
+            <button (click)="onAdd({type: 'configType', path: getCopyArray(path(), ratIdx)})"
+              class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer"
+              title="Add Config Type">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          </div>
+          <!-- Config Types inside this RAT -->
+          @if (rat.configObjTypeList) {
+            @for (typeItem of rat.configObjTypeList; track typeItem.configTypeId || $index; let typeIdx = $index) {
+              @if (shouldShow(typeItem, 'configType') || shouldShowChild(typeItem, 'configType')) {
+              <app-tree-node
+                [node]="typeItem"
+                [nodeType]="'configType'"
+                [path]="getCopyArray(path(), ratIdx, typeIdx)"
+                [searchTerm]="searchTerm()"
+                [forceShow]="forceChildren()"
+                (view)="view.emit($event)"
+                (add)="add.emit($event)"
+                (edit)="edit.emit($event)"
+                (delete)="delete.emit($event)">
+              </app-tree-node>
+              }
+            } @empty {
+              <div class="text-gray-400 ml-8 text-sm italic">No configuration types</div>
+            }
+          }
+        }
+      } @empty {
+        <div class="text-gray-400 ml-2 text-sm italic">No RAT types configured</div>
+      }
     }
 
-    <!-- 3. Iterate Operation Types -->
-    @if (node().operationTypes) {
-    <div class="flex justify-between items-center hover:bg-gray-100 py-2 px-3 rounded-lg">
-      <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Operations</div>
-      <div class="flex items-center gap-1">
-        <button (click)="onAdd({type: 'operationType', path: path()})"
-          class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer"
-          title="Add new operation">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
-      </div>
-    </div>
-    @for (child of node().operationTypes; track $index) {
-    @if (shouldShowChild(child, 'operationType')) {
-    <app-tree-node [node]="child" [nodeType]="'operationType'" [path]="getCopyArray(path(), $index)"
-      [searchTerm]="searchTerm()" [forceShow]="forceChildren()" (view)="view.emit($event)" (add)="add.emit($event)"
-      (edit)="edit.emit($event)" (delete)="delete.emit($event)"></app-tree-node>
-    }
-    } @empty {
-    <div class="text-gray-300 ml-2 px-3 rounded-lg">
-      No Operation added.
-    </div>
-    }
+    <!-- 2. CONFIG TYPE: Show Config Objects -->
+    @if (nodeType() === 'configType') {
+      @if (node().configObjList) {
+        <div class="flex justify-between items-center py-1 px-2 mb-1">
+          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Configuration Objects</div>
+          <button (click)="onAdd({type: 'configObj', path: path()})"
+            class="p-1 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer"
+            title="Add Config Object">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+        @for (child of node().configObjList; track child.configObjId || $index; let objIdx = $index) {
+          @if (shouldShowChild(child, 'configObj')) {
+          <app-tree-node
+            [node]="child"
+            [nodeType]="'configObj'"
+            [path]="getCopyArray(path(), objIdx)"
+            [searchTerm]="searchTerm()"
+            [forceShow]="forceChildren()"
+            (view)="view.emit($event)"
+            (add)="add.emit($event)"
+            (edit)="edit.emit($event)"
+            (delete)="delete.emit($event)">
+          </app-tree-node>
+          }
+        } @empty {
+          <div class="text-gray-400 ml-2 text-sm italic">No configuration objects</div>
+        }
+      }
     }
 
-    <!-- 4. Iterate Params -->
-    @if (node().params) {
-    <div class="flex justify-between items-center hover:bg-gray-100 py-2 px-3 rounded-lg">
-      <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Parameters</div>
-      <!-- Action Buttons -->
-      <div class="flex items-center gap-1 ">
-        <button (click)="onAdd({type: 'param', path: path()})"
-          class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer"
-          title="Add new parameter">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
+    <!-- 3. CONFIG OBJ: Show nested children (configObjList, operationTypes, params from confObjDetail) -->
+    @if (nodeType() === 'configObj') {
+      @let detail = node().confObjDetail || node();
+
+      <!-- Nested Config Objects -->
+      @if (detail.configObjList && detail.configObjList.length > 0) {
+        <div class="flex justify-between items-center py-1 px-2 mb-1">
+          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Children</div>
+          <button (click)="onAdd({type: 'configObj', path: path()})"
+            class="p-1 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer"
+            title="Add Child Object">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+        @for (child of detail.configObjList; track child.configObjId || $index; let childIdx = $index) {
+          @if (shouldShowChild(child, 'configObj')) {
+          <app-tree-node
+            [node]="child"
+            [nodeType]="'configObj'"
+            [path]="getCopyArray(path(), childIdx)"
+            [searchTerm]="searchTerm()"
+            [forceShow]="forceChildren()"
+            (view)="view.emit($event)"
+            (add)="add.emit($event)"
+            (edit)="edit.emit($event)"
+            (delete)="delete.emit($event)">
+          </app-tree-node>
+          }
+        }
+      }
+
+      <!-- Operation Types -->
+      @if (detail.operationTypes && detail.operationTypes.length > 0) {
+        <div class="flex justify-between items-center py-1 px-2 mb-1 mt-2">
+          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Operations</div>
+          <button (click)="onAdd({type: 'operationType', path: path()})"
+            class="p-1 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer"
+            title="Add Operation">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+        @for (child of detail.operationTypes; track child.msgId || $index; let opIdx = $index) {
+          @if (shouldShowChild(child, 'operationType')) {
+          <app-tree-node
+            [node]="child"
+            [nodeType]="'operationType'"
+            [path]="getCopyArray(path(), opIdx)"
+            [searchTerm]="searchTerm()"
+            [forceShow]="forceChildren()"
+            (view)="view.emit($event)"
+            (add)="add.emit($event)"
+            (edit)="edit.emit($event)"
+            (delete)="delete.emit($event)">
+          </app-tree-node>
+          }
+        }
+      }
+
+      <!-- Parameters -->
+      @if (detail.params && detail.params.length > 0) {
+        <div class="flex justify-between items-center py-1 px-2 mb-1 mt-2">
+          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Parameters</div>
+          <button (click)="onAdd({type: 'param', path: path()})"
+            class="p-1 text-green-600 hover:bg-green-50 rounded transition-colors duration-150 cursor-pointer"
+            title="Add Parameter">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+        @for (child of detail.params; track child.id || $index; let paramIdx = $index) {
+          @if (shouldShowChild(child, 'param')) {
+          <app-tree-node
+            [node]="child"
+            [nodeType]="'param'"
+            [path]="getCopyArray(path(), paramIdx)"
+            [searchTerm]="searchTerm()"
+            [forceShow]="forceChildren()"
+            (view)="view.emit($event)"
+            (add)="add.emit($event)"
+            (edit)="edit.emit($event)"
+            (delete)="delete.emit($event)">
+          </app-tree-node>
+          }
+        }
+      }
+
+      <!-- Show message if no children at all -->
+      @if ((!detail.configObjList || detail.configObjList.length === 0) &&
+            (!detail.operationTypes || detail.operationTypes.length === 0) &&
+            (!detail.params || detail.params.length === 0)) {
+        <div class="text-gray-400 ml-2 text-sm italic py-2">No children, operations, or parameters</div>
+      }
+    }
+
+    <!-- 4. OPERATION TYPE: No children -->
+    @if (nodeType() === 'operationType') {
+      <div class="text-gray-400 ml-2 text-sm italic py-2">Operation details — use Edit to modify</div>
+    }
+
+    <!-- 5. PARAM: No children -->
+    @if (nodeType() === 'param') {
+      <div class="text-gray-400 ml-2 text-sm italic py-2">
+        Type: {{ node().type || 'N/A' }} | Default: {{ node().defaultValue || 'N/A' }} | Editable: {{ node().isEditable ? 'Yes' : 'No' }}
       </div>
-    </div>
-    @for (child of node().params; track $index) {
-    @if (shouldShowChild(child, 'param')) {
-    <app-tree-node [node]="child" [nodeType]="'param'" [path]="getCopyArray(path(), $index)" [searchTerm]="searchTerm()"
-      [forceShow]="forceChildren()" (view)="view.emit($event)" (add)="add.emit($event)" (edit)="edit.emit($event)"
-      (delete)="delete.emit($event)"></app-tree-node>
     }
-    } @empty {
-    <div class="text-gray-300 ml-2 px-3 rounded-lg">
-      No Parameter added.
-    </div>
-    }
-    }
+
   </div>
   }
 </div>

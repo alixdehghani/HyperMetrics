@@ -23,7 +23,7 @@ import { RouteService } from '../../core/services/route/route.service';
 export class Measure implements OnInit {
     expandedSections: { [key: string]: boolean } = {};
     showRestoreBanner = false;
-    measureObject!: MeasureType;
+    measureObject: MeasureType | null = null; 
     measurementsData: MeasureObjType[] = [];
     filteredMeasurementsData: MeasureObjType[] = [];
     searchTerm: string = '';
@@ -38,10 +38,10 @@ export class Measure implements OnInit {
 
     ngOnInit(): void {
         const savedJson = this._measureService.getMeasureObject();
-        if (savedJson) {
-            this.showRestoreBanner = true;
-            this.restoreFromLocalStorage();
-        }
+    if (savedJson) {
+        this.showRestoreBanner = true;
+        this.restoreFromLocalStorage();
+    }
     }
 
     onJsonFileUpload(event: any) {
@@ -197,17 +197,18 @@ export class Measure implements OnInit {
         });
     }
 
-    private _initial(): void {
-        this.measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList).forEach(mobjt => mobjt.measureObjList.forEach(obj => {
-            obj.measureObjId = this._measureService.getMeasureObjId(obj, this.measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList))!
-            obj.counterList.forEach(counter => {
-                counter.id = this._measureService.getCounterId(counter, this.measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList))!
-            });
-            obj.kpiList.forEach(kpi => {
-                kpi.kpiId = this._measureService.getKpiId(kpi, this.measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList))!;
-            })
-        }))
-    }
+private _initial(): void {
+    if (!this.measureObject) return; 
+    this.measureObject.ratTypeList.flatMap(rat => rat.measureObjTypeList).forEach(mobjt => mobjt.measureObjList.forEach(obj => {
+        obj.measureObjId = this._measureService.getMeasureObjId(obj, this.measureObject!.ratTypeList.flatMap(rat => rat.measureObjTypeList))!
+        obj.counterList.forEach(counter => {
+            counter.id = this._measureService.getCounterId(counter, this.measureObject!.ratTypeList.flatMap(rat => rat.measureObjTypeList))!
+        });
+        obj.kpiList.forEach(kpi => {
+            kpi.kpiId = this._measureService.getKpiId(kpi, this.measureObject!.ratTypeList.flatMap(rat => rat.measureObjTypeList))!;
+        })
+    }))
+}
 
     private _normalizeData() {
         this.measurementsData.forEach(measureObjData => {
@@ -225,21 +226,18 @@ export class Measure implements OnInit {
     }
 
     private _saveToLocalStorage() {
-        this.routeService.isLoadingRoute.set(true);
-        requestIdleCallback(() => {
-            this.measureObject.ratTypeList.forEach(rat => {
-                this._measureService.addRatTypeIntoLocalStorageById(rat);
-                rat.measureObjTypeList.forEach(measureObjData => {
-                    this._measureService.addTypeObjIntoLocalStorageById(rat.ratTypeId, measureObjData.measureObjTypeId, measureObjData);
-                })
+    if (!this.measureObject) return; 
+    this.routeService.isLoadingRoute.set(true);
+    requestIdleCallback(() => {
+        this.measureObject!.ratTypeList.forEach(rat => {
+            this._measureService.addRatTypeIntoLocalStorageById(rat);
+            rat.measureObjTypeList.forEach(measureObjData => {
+                this._measureService.addTypeObjIntoLocalStorageById(rat.ratTypeId, measureObjData.measureObjTypeId, measureObjData);
             })
-            // this.measurementsData.forEach((measureObjData) => {
-            //     const ratid = this.measureObject.ratTypeList.find(rat => rat.measureObjTypeList.some(o => o.measureObjTypeId === measureObjData.measureObjTypeId))?.ratTypeId || '';
-            //     this._measureService.addTypeObjIntoLocalStorageById(ratid, measureObjData.measureObjTypeId, measureObjData);
-            // });
-            this._measureService.saveMainObjectIntoLocalStorage(this.measureObject);
-            this.routeService.isLoadingRoute.set(false);
-        });
+        })
+        this._measureService.saveMainObjectIntoLocalStorage(this.measureObject!);
+        this.routeService.isLoadingRoute.set(false);
+    });
     }
 
 

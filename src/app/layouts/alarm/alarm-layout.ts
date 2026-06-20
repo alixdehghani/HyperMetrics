@@ -9,12 +9,11 @@ import { UserNavigationPanel } from '../../shared/formula-input/navigation-panel
     RouterModule,
     UserNavigationPanel
 ],
-    selector: 'home-layout',
-    templateUrl: 'home-layout.html',
-    styleUrl: 'home-layout.scss',
+    selector: 'config-layout',
+    templateUrl: 'alarm-layout.html'
 })
 
-export class HomeLayout {    
+export class AlarmLayout {    
     routeService = inject(RouteService);
     navItems = signal([
         {

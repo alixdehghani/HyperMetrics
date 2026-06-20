@@ -1,0 +1,266 @@
+<div class="alarm-page">
+
+  <!-- Header -->
+  <div class="alarm-header">
+    <div class="header-left">
+      <div>
+        <h1>BSC Alarm Management</h1>
+        <p>Base Station Controller · {{ alarms.length }} alarms configured</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <label class="px-2 py-1 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 cursor-pointer text-sm">
+        📂 Upload JSON
+        <input type="file" accept="application/json" (change)="onJsonFileUpload($event)" class="hidden" />
+      </label>
+      
+      <export-bsc-alarm #exportPanel />
+    </div>
+  </div>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stat-chip critical" (click)="filterLevel(0)" [class.active]="activeFilter === 0">
+      <span class="dot"></span><span class="count">{{ countByLevel(0) }}</span>Critical
+    </div>
+    <div class="stat-chip major" (click)="filterLevel(1)" [class.active]="activeFilter === 1">
+      <span class="dot"></span><span class="count">{{ countByLevel(1) }}</span>Major
+    </div>
+    <div class="stat-chip minor" (click)="filterLevel(2)" [class.active]="activeFilter === 2">
+      <span class="dot"></span><span class="count">{{ countByLevel(2) }}</span>Minor
+    </div>
+    <div class="stat-chip warning" (click)="filterLevel(3)" [class.active]="activeFilter === 3">
+      <span class="dot"></span><span class="count">{{ countByLevel(3) }}</span>Warning
+    </div>
+    <div class="stat-chip all" (click)="filterLevel(-1)" [class.active]="activeFilter === -1">
+      All <span class="count">{{ alarms.length }}</span>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="search-bar">
+    <i class="ti ti-search"></i>
+    <input type="text" placeholder="Search alarms..." [(ngModel)]="searchTerm" />
+  </div>
+
+  <!-- Alarm Tree -->
+  <div class="alarm-tree">
+    <div *ngFor="let group of filteredGroups" class="level-group">
+
+      <!-- Level Header -->
+      <div class="level-header" (click)="toggleSection(group.levelName)">
+  <div class="level-left">
+    <i class="ti ti-chevron-right" [class.rotated]="expandedSections[group.levelName]"></i>
+    <span class="level-badge" [ngClass]="group.levelClass">{{ group.levelName }}</span>
+    <span class="level-count">{{ group.alarms.length }}</span>
+  </div>
+  <div class="flex items-center gap-3">
+    <button
+      (click)="$event.stopPropagation(); openAddModalWithLevel(group.levelId)"
+      class="px-2 py-1 rounded-lg font-medium bg-green-600 text-white hover:bg-green-700 cursor-pointer text-sm">
+      + Add
+    </button>
+    <div class="level-type">Level {{ group.levelId }}</div>
+  </div>
+</div>
+
+      <!-- Alarm Items -->
+      <div class="alarm-list" *ngIf="expandedSections[group.levelName]">
+        <div *ngFor="let alarm of group.alarms" class="alarm-item"
+          [class.selected]="selectedAlarm?.alarmId === alarm.alarmId"
+          (click)="selectAlarm(alarm)">
+
+          <div class="alarm-item-left">
+            <div class="alarm-id-badge" [ngClass]="group.levelClass">#{{ alarm.alarmId }}</div>
+            <div class="alarm-info">
+              <div class="alarm-name">{{ alarm.advise }}</div>
+              <div class="alarm-desc">{{ alarm.alarmName }}</div>
+            </div>
+          </div>
+
+          <div class="alarm-item-right">
+            <span class="type-chip">{{ getTypeName(alarm.alarmTypeId) }}</span>
+            <!-- Action Buttons -->
+            <button class="action-btn edit-btn" (click)="$event.stopPropagation(); openEditModal(alarm)" title="Edit">
+              ✏️
+            </button>
+            <button class="action-btn delete-btn" (click)="$event.stopPropagation(); deleteAlarm(alarm)" title="Delete">
+              🗑️
+            </button>
+            <i class="ti ti-chevron-right arrow-icon"></i>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <div *ngIf="filteredGroups.length === 0" class="empty-state">
+      <i class="ti ti-mood-empty"></i>
+      <p>No alarms found</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- Detail Panel -->
+<div class="detail-overlay" *ngIf="selectedAlarm && !modalOpen" (click)="selectedAlarm = null">
+  <div class="detail-panel" (click)="$event.stopPropagation()">
+    <div class="detail-header" [ngClass]="getLevelClass(selectedAlarm.levelId)">
+      <div>
+        <div class="detail-id">#{{ selectedAlarm.alarmId }}</div>
+        <div class="detail-title">{{ selectedAlarm.advise }}</div>
+      </div>
+      <button class="detail-close" (click)="selectedAlarm = null">
+        <i class="ti ti-x"></i>
+      </button>
+    </div>
+    <div class="detail-body">
+      <div class="detail-row">
+        <span class="detail-label">Alarm Name</span>
+        <span class="detail-value">{{ selectedAlarm.alarmName }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Cause</span>
+        <span class="detail-value">{{ selectedAlarm.cause }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Level</span>
+        <span class="detail-value">{{ getLevelName(selectedAlarm.levelId) }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Type</span>
+        <span class="detail-value">{{ getTypeName(selectedAlarm.alarmTypeId) }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Board Type</span>
+        <span class="detail-value">{{ selectedAlarm.brdTypeId }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+  *ngIf="modalOpen" (click)="closeModal()">
+  <div class="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
+
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between p-6 border-b border-gray-200">
+      <h3 class="text-xl font-bold text-gray-900">
+        {{ modalMode === 'add' ? 'Add New Alarm' : 'Edit Alarm' }}
+      </h3>
+      <button (click)="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+    </div>
+
+    <!-- Modal Body -->
+    <form [formGroup]="alarmForm" (ngSubmit)="saveAlarm()" class="p-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Alarm ID</label>
+          <input type="number" formControlName="alarmId"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            [class.border-red-500]="alarmForm.get('alarmId')?.invalid && alarmForm.get('alarmId')?.touched" />
+          <p *ngIf="alarmForm.get('alarmId')?.invalid && alarmForm.get('alarmId')?.touched"
+            class="mt-1 text-sm text-red-600">Alarm ID is required</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Advise</label>
+          <input type="text" formControlName="advise"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            [class.border-red-500]="alarmForm.get('advise')?.invalid && alarmForm.get('advise')?.touched" />
+          <p *ngIf="alarmForm.get('advise')?.invalid && alarmForm.get('advise')?.touched"
+            class="mt-1 text-sm text-red-600">Advise is required</p>
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Alarm Name</label>
+          <input type="text" formControlName="alarmName"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            [class.border-red-500]="alarmForm.get('alarmName')?.invalid && alarmForm.get('alarmName')?.touched" />
+          <p *ngIf="alarmForm.get('alarmName')?.invalid && alarmForm.get('alarmName')?.touched"
+            class="mt-1 text-sm text-red-600">Alarm Name is required</p>
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Cause</label>
+          <textarea formControlName="cause" rows="2"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Level</label>
+          <select formControlName="levelId"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            <option [ngValue]="0">Critical</option>
+            <option [ngValue]="1">Major</option>
+            <option [ngValue]="2">Minor</option>
+            <option [ngValue]="3">Warning</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Alarm Type</label>
+          <select formControlName="alarmTypeId"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            <option [ngValue]="0">Communication</option>
+            <option [ngValue]="1">Equipment</option>
+            <option [ngValue]="2">Processing</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Board Type ID</label>
+          <input type="number" formControlName="brdTypeId"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">NE Type ID</label>
+          <input type="text" formControlName="neTypeId"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Edit People</label>
+          <input type="text" formControlName="editPeople"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Language Type</label>
+          <input type="text" formControlName="languageType"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Append Info</label>
+          <input type="text" formControlName="appendInfo"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Is Redefined</label>
+          <input type="text" formControlName="isRedefined"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div class="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
+        <button type="button" (click)="closeModal()"
+          class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
+          Cancel
+        </button>
+        <button type="submit" [disabled]="alarmForm.invalid"
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed">
+          {{ modalMode === 'add' ? 'Add Alarm' : 'Save Changes' }}
+        </button>
+      </div>
+    </form>
+
+  </div>
+</div>

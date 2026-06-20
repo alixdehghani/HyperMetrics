@@ -19,19 +19,36 @@ export interface ConfigObjType {
 }
 
 export interface ConfigObj {
+    configObjName?: string;        
     configObjId: string;
-    dataName: string;
-    title: string;
-    parameterName: string;
-    abbreviation: string;
-    mmlCommandNamePosfix: string;
-    className: string;
-    module: string;
-    operationTypes: OperationType[];
-    showInOSS: boolean;
-    showInUI: boolean;
-    showInNavMenue: boolean;
-    params: Parameter[];
+    confObjDetail?: {              
+        dataName: string;
+        title: string;
+        parameterName: string;
+        abbreviation: string;
+        configObjId: string;
+        mmlCommandNamePosfix: string;
+        className: string;
+        module: string;
+        operationTypes: OperationType[];
+        showInOSS: boolean;
+        showInUI: boolean;
+        showInNavMenue: boolean;
+        params: Parameter[];
+        configObjList?: ConfigObj[]; 
+    };
+    dataName?: string;
+    title?: string;
+    parameterName?: string;
+    abbreviation?: string;
+    mmlCommandNamePosfix?: string;
+    className?: string;
+    module?: string;
+    operationTypes?: OperationType[];
+    showInOSS?: boolean;
+    showInUI?: boolean;
+    showInNavMenue?: boolean;
+    params?: Parameter[];
     configObjList?: ConfigObj[];
 }
 
@@ -104,12 +121,14 @@ export interface ConfMapConfig {
 
 // Target Interfaces
 export interface ICommand {
-  module: string;
-  id: string;
-  pmoName: string; // Mapped from className
-  name: string;    // Mapped from dataName
-  title: string;
-  commands: {
+    module: string;
+    id: string;
+    pmoName: string;
+    name: string;
+    title: string;
+    commands: ICommandOperation[];
+}
+export interface ICommandOperation {
     msgId: string;
     name: string;
     code: string;
@@ -117,22 +136,20 @@ export interface ICommand {
     title: string;
     isDangerous: boolean;
     params: ICommandParams[];
-  }[];
 }
-
 export interface ICommandParams {
-  id: string;
-  name: string;
-  title: string;
-  isPrimaryKey: boolean;
-  required: boolean;
-  isEnabled: boolean;
-  unit: string | null;
-  defaultValue: string;
-  type: string;
-  validation: string;
-  uiValidation: string;
-  filter: any[];
-  modeType: string;
-  showOn: string | null;
+    id: string;
+    name: string;
+    title: string;
+    isPrimaryKey: boolean;
+    required: boolean;
+    isEnabled: boolean;
+    unit: string | null;
+    defaultValue: string;
+    type: string;
+    validation: string | null;
+    uiValidation: string | null;
+    filter: { text: string; value: string }[];
+    modeType: string;
+    showOn: string | null;
 }

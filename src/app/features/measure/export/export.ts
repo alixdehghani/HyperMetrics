@@ -8,8 +8,8 @@ import { saveAs } from 'file-saver';
 export const filenames = {
     ZipFile: 'exported_files.zip',
     HyperCounterKpi: 'hyper-counter-kpi.json',
-    Properties: 'counters_kpi_list.properties',
-    eNodeBNoRealtime: 'eNodeB_No_Realtime.json',
+    Properties: 'indicators-title.properties',
+    eNodeBNoRealtime: 'periodic-indicators.json',
     KpiSetting: 'kpi_setting.json',
     DefaultKpiFormulas: 'default_kpi_formulas.json',
     OssConfig: 'oss-config.json'
